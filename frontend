@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NextScore Odds — Match Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color:#0f172a; color:#e2e8f0; }
+    .drawer { transition: transform .25s ease; }
+    .drawer.closed { transform: translateX(102%); }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:35; display:none; }
+    .overlay.show { display:block; }
+
+    .tab-on  { background:#d97706; color:#fff; }
+    .tab-off { background:#1f2937; color:#fbbf24; }
+    .mkt-on  { background:#d97706; color:#fff; }
+    .mkt-off { background:#1f2937; color:#cbd5e1; }
+    .disabled { opacity:.6; pointer-events:none; }
+    .fav-on { color:#fbbf24; }
+    .fav-off { color:#94a3b8; }
+    .chip{ font-size:12px; line-height:1; padding:6px 10px; border-radius:12px; }
+
+    /* --- Carousel --- */
+    .carousel-track{ display:flex; gap:14px; will-change:transform; }
+    .carousel-item{ min-width:320px; max-width:420px; }
+
+    /* Injuries UI */
+    .injuries-list { padding-left:18px; margin:8px 0; }
+    .injuries-list li { margin:6px 0; line-height:1.35; }
+    .muted { color:rgba(255,255,255,.6); font-size:.92em; }
+  </style>
+</head>
+
+<!-- IMPORTANTE: niente lg:pr-[580px] di default.
+     Lo aggiungiamo solo quando il drawer è aperto. -->
+<body class="bg-slate-900 text-slate-200">
+
+  <!-- overlay mobile -->
+  <div id="overlay" class="overlay"></div>
+
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <!-- Header -->
+    <header class="mb-6 flex items-center justify-between gap-4">
+      <h1 class="text-2xl md:text-3xl font-semibold">NextScore <span class="text-amber-400">Odds</span></h1>
+      <div class="text-xs md:text-sm text-slate-400 space-x-3">
+        <span id="rateInfo">rate: …</span>
+        <span id="statusInfo">pronto</span>
+      </div>
+    </header>
+
+    <!-- GLOBAL NEWS CAROUSEL -->
+    <section class="mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-sm font-medium text-slate-300">Ultime notizie</div>
+        <div class="text-[11px] text-slate-500">Fonte reale • auto-scroll</div>
+      </div>
+      <div class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-800/70">
+        <div id="newsTrack" class="carousel-track p-3"></div>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="mb-4 bg-slate-800/80 rounded-2xl border border-slate-700 p-4 md:p-5">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium mb-1 text-slate-300">Calcio — Campionati / Coppe</label>
+          <select id="sport" class="w-full rounded-xl border-slate-700 bg-slate-900 text-slate-200">
+            <!-- Big 5 -->
+            <option value="soccer_italy_serie_a">Serie A</option>
+            <option value="soccer_epl" selected>Premier League</option>
+            <option value="soccer_spain_la_liga">La Liga</option>
+            <option value="soccer_germany_bundesliga">Bundesliga</option>
+            <option value="soccer_france_ligue_one">Ligue 1</option>
+
+            <!-- Altri principali EU -->
+            <option value="soccer_netherlands_eredivisie">Eredivisie</option>
+            <option value="soccer_portugal_primeira_liga">Primeira Liga</option>
+            <option value="soccer_scotland_premiership">Scottish Premiership</option>
+            <option value="soccer_belgium_first_div">Belgian Pro League</option>
+
+            <!-- Coppe UEFA -->
+            <option value="soccer_uefa_champs_league">UEFA Champions League</option>
+            <option value="soccer_uefa_europa_league">UEFA Europa League</option>
+            <!-- alcune implementazioni la chiamano così; se nel tuo backend non esiste, va mappata -->
+            <option value="soccer_uefa_europa_conference_league">UEFA Europa Conference League</option>
+
+            <option value="custom">— Altro (custom) —</option>
+          </select>
+
+          <input id="sportCustom" type="text" placeholder="es. soccer_uefa_champs_league"
+                 class="mt-2 hidden w-full rounded-xl border-slate-700 bg-slate-900 text-slate-200 placeholder-slate-500" />
+          <div class="mt-2 text-[11px] text-slate-500">Suggerimento: se un campionato non torna eventi, prova region EU e Upcoming.</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1 text-slate-300">Regione quote</label>
+          <select id="regions" class="w-full rounded-xl border-slate-700 bg-slate-900 text-slate-200">
+            <option value="eu" selected>EU</option>
+            <option value="uk">UK</option>
+            <option value="us">US</option>
+            <option value="au">AU</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1 text-slate-300">N. partite</label>
+          <input id="count" type="number" min="1" max="50" value="20"
+                 class="w-full rounded-xl border-slate-700 bg-slate-900 text-slate-200" />
+        </div>
+
+        <div class="flex items-end gap-2">
+          <button id="tabUpcoming" class="tab-on flex-1 rounded-xl px-3 py-2 text-sm font-medium">Prossimi match</button>
+          <button id="tabLive"     class="tab-off flex-1 rounded-xl px-3 py-2 text-sm font-medium">Live</button>
+          <button id="tabFavs"     class="tab-off flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium" title="Mostra solo preferiti">
+            ⭐ Preferiti <span id="favCount" class="chip border border-slate-600 text-slate-300">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Market filter -->
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-sm text-slate-400">Mercato:</span>
+        <button data-market="h2h"   id="mktH2H"    class="mkt-on rounded-xl px-3 py-2 text-sm font-medium">1X2</button>
+        <button data-market="totals" id="mktTotals" class="mkt-off rounded-xl px-3 py-2 text-sm font-medium">Under/Over</button>
+        <button data-market="btts"   id="mktBTTS"   class="mkt-off rounded-xl px-3 py-2 text-sm font-medium">Gol/No Gol</button>
+
+        <button id="refreshBtn" class="ml-auto rounded-xl bg-amber-600 px-4 py-2 text-white text-sm font-medium hover:bg-amber-700">
+          Cerca Match
+        </button>
+      </div>
+    </section>
+
+    <!-- Notices -->
+    <div id="notice"    class="hidden mb-4 rounded-2xl border border-amber-700 bg-amber-900/20 text-amber-200 px-4 py-3 text-sm"></div>
+    <div id="favNotice" class="hidden mb-4 rounded-2xl border border-slate-700 bg-slate-800/70 text-slate-200 px-4 py-3 text-sm"></div>
+
+    <!-- Event list -->
+    <section id="cards" class="grid gap-4 md:grid-cols-2"></section>
+
+    <footer class="mt-10 text-center text-xs text-slate-500">
+      UI statica — collega i tuoi servizi Cloud Run come backend.
+    </footer>
+  </div>
+
+  <!-- RIGHT CHAT DRAWER (chiuso di default) -->
+  <aside id="drawer" class="drawer closed fixed top-0 right-0 h-full w-full sm:w-[560px] bg-slate-900 border-l border-slate-800 z-40">
+    <div class="flex flex-col h-full">
+      <!-- header -->
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div id="chatTitle" class="text-base font-semibold">Seleziona un match</div>
+          <div id="chatSub"   class="text-xs text-slate-400">Clicca una partita per aprire l’AI</div>
+        </div>
+        <button id="closeDrawer" class="rounded-lg px-3 py-1 text-sm border border-slate-700 hover:bg-slate-800">Chiudi</button>
+      </div>
+
+      <!-- tabs -->
+      <div class="px-3 pt-3 border-b border-slate-800">
+        <div class="inline-flex rounded-xl overflow-hidden border border-slate-700">
+          <button id="tabA" class="px-3 py-1.5 text-sm bg-amber-600 text-white">Analisi</button>
+          <button id="tabI" class="px-3 py-1.5 text-sm bg-slate-800 text-slate-200 hover:bg-slate-700">Infortuni</button>
+          <button id="tabN" class="px-3 py-1.5 text-sm bg-slate-800 text-slate-200 hover:bg-slate-700">News</button>
+        </div>
+      </div>
+
+      <!-- content areas -->
+      <div id="areaA" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900"></div>
+      <div id="areaI" class="hidden flex-1 overflow-y-auto p-4 bg-slate-900">
+        <div class="w-full">
+          <div class="text-sm text-slate-400 mb-2">Assenze / indisponibili</div>
+          <div id="injuriesBox" class="text-sm"></div>
+        </div>
+      </div>
+      <div id="areaN" class="hidden flex-1 overflow-y-auto p-4 bg-slate-900">
+        <div class="w-full">
+          <div class="text-sm text-slate-400 mb-2">Notizie del match</div>
+          <div id="matchNews" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- input -->
+      <div class="p-3 border-t border-slate-800">
+        <form id="chatForm" class="flex items-end gap-2">
+          <textarea id="chatInput" rows="2" placeholder="Chiedi: forma, H2H, trend, indisponibili…"
+                    class="flex-1 rounded-xl border-slate-700 bg-slate-900 text-slate-200"></textarea>
+          <button id="sendBtn" class="rounded-xl bg-amber-600 px-4 py-2 text-white text-sm font-medium hover:bg-amber-700">Invia</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <script>
+    /* ======= CONFIG: ENDPOINTS ======= */
+    const SERVICE_BASE   = "https://get-odds-299332443653.europe-west8.run.app"; // get-odds
+    const BETTY_CHAT_URL = "https://betty-chat-299332443653.europe-west8.run.app"; // betty-chat
+    const SITE_BASE = "#";
+
+    /* ======= STATE ======= */
+    let isLive = false, showFavsOnly = false, liveTimer = null;
+    let lastData = [];
+    let currentEvent = null;
+    let currentMarket = "h2h";
+    let chatHistory = [];
+    let initInProgress = false;
+    let queuedText = null;
+
+    const LS_KEY = "nextscore_favs_v1";
+
+    /* ======= DOM ======= */
+    const el = (id) => document.getElementById(id);
+    const $ = {
+      cards: el("cards"), rate: el("rateInfo"), status: el("statusInfo"),
+      refresh: el("refreshBtn"), tabUpcoming: el("tabUpcoming"), tabLive: el("tabLive"), tabFavs: el("tabFavs"),
+      favCount: el("favCount"), favNotice: el("favNotice"),
+      sport: el("sport"), sportCustom: el("sportCustom"), regions: el("regions"), count: el("count"),
+      drawer: el("drawer"),
+      overlay: el("overlay"),
+      chatTitle: el("chatTitle"), chatSub: el("chatSub"),
+      chatFeed: el("areaA"), chatForm: el("chatForm"), chatInput: el("chatInput"),
+      sendBtn: el("sendBtn"), closeDrawer: el("closeDrawer"),
+      mktH2H: el("mktH2H"), mktTotals: el("mktTotals"), mktBTTS: el("mktBTTS"),
+      notice: el("notice"),
+      tabA: el("tabA"), tabI: el("tabI"), tabN: el("tabN"),
+      areaA: el("areaA"), areaI: el("areaI"), areaN: el("areaN"),
+      injuriesBox: el("injuriesBox"),
+      matchNews: el("matchNews"),
+      newsTrack: el("newsTrack"),
+    };
+
+    /* ======= DRAWER open/close ======= */
+    function openDrawer(){
+      $.drawer.classList.remove("closed");
+      document.body.classList.add("lg:pr-[580px]");
+      if (window.innerWidth < 640) $.overlay.classList.add("show");
+    }
+    function closeDrawer(){
+      $.drawer.classList.add("closed");
+      document.body.classList.remove("lg:pr-[580px]");
+      $.overlay.classList.remove("show");
+    }
+    $.closeDrawer.addEventListener("click", (e)=>{ e.preventDefault(); closeDrawer(); });
+    $.overlay.addEventListener("click", closeDrawer);
+
+    /* ======= HELPERS ======= */
+    const fmtPct = (n) => `${Number(n).toFixed(2)}%`;
+    const fairOdds = (probPct) => 100 / Number(probPct || 0.00001);
+    const fmtDate = (iso) => { try { const d = new Date(iso);
+      return d.toLocaleString(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});} catch { return iso; } };
+    const chosenSport = () => ($.sport.value === "custom" && $.sportCustom.value.trim()) ? $.sportCustom.value.trim() : $.sport.value;
+    const toItOutcome = (name="") => /draw/i.test(name) ? "Pareggio" : /yes/i.test(name) ? "Gol" : /no/i.test(name) ? "No Gol" : name;
+    function bestOutcome(outcomes=[]) { return [...outcomes].sort((a,b) => (b.prob||0)-(a.prob||0))[0]; }
+    function buildSiteLink(id){ if(!SITE_BASE || SITE_BASE==="#") return "#"; const u=new URL(SITE_BASE); u.searchParams.set("match",id); return u.toString(); }
+    function empty(msg){ return `<div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 text-center text-slate-400">${msg}</div>`; }
+    function tableWrap(inner){ return `<div class="overflow-x-auto"><table class="min-w-full text-sm text-slate-200">${inner}</table></div>`; }
+    function unavailable(msg){ return `<div class="text-sm text-slate-400 border border-slate-700 rounded-xl px-3 py-2">${msg}</div>`; }
+    function esc(s){return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]) ) }
+    function linkify(s){return s.replace(/(https?:\/\/\S+)/g,'<a class="text-amber-300 underline" target="_blank" rel="noopener" href="$1">$1</a>') }
+    function disableForm(on){ $.chatInput.disabled=on; $.sendBtn.disabled=on; $.chatForm.classList.toggle("disabled", on); }
+
+    /* ======= FAVORITI ======= */
+    function getFavs(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch{ return []; } }
+    function setFavs(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); updateFavCount(); }
+    function isFav(id){ return getFavs().includes(id); }
+    window.toggleFav = function(evId){
+      const favs = getFavs();
+      const i = favs.indexOf(evId);
+      if (i >= 0) favs.splice(i,1); else favs.push(evId);
+      setFavs(favs);
+      renderCards(lastData);
+      if (showFavsOnly) filterFavsView();
+    }
+    function updateFavCount(){ $.favCount.textContent = String(getFavs().length || 0); }
+
+    /* ======= GLOBAL NEWS (deve essere reale dal backend /news) ======= */
+    let newsTickerX = 0, newsTimer = null, newsItemsCache = [];
+    function newsCard(n){
+      const src = esc(n.source || "Fonte");
+      const t   = esc(n.title  || "Titolo");
+      const lnk = n.url ? `<a class="underline text-amber-300" target="_blank" rel="noopener" href="${esc(n.url)}">leggi</a>` : "";
+      const dt  = n.published_at ? `<span class="text-slate-500"> • ${esc(fmtDate(n.published_at))}</span>` : "";
+      return `<article class="carousel-item border border-slate-700 rounded-xl bg-slate-800/70 px-4 py-3">
+        <div class="text-[11px] text-slate-400 mb-1">${src}${dt}</div>
+        <div class="text-sm leading-snug">${t}</div>
+        <div class="mt-2 text-[12px] text-slate-400">${lnk}</div>
+      </article>`;
+    }
+    function startNewsTicker(){
+      clearInterval(newsTimer);
+      newsTimer = setInterval(()=>{
+        newsTickerX -= 1;
+        $.newsTrack.style.transform = `translateX(${newsTickerX}px)`;
+        const first = $.newsTrack.firstElementChild;
+        if (first && (first.getBoundingClientRect().right < 0)) {
+          $.newsTrack.appendChild(first);
+          newsTickerX += first.getBoundingClientRect().width + 14;
+          $.newsTrack.style.transform = `translateX(${newsTickerX}px)`;
+        }
+      }, 20);
+    }
+    async function fetchGlobalNews(){
+      try {
+        const url = new URL(SERVICE_BASE + "/news");
+        url.searchParams.set("lang", "it");
+        url.searchParams.set("sport", chosenSport());
+        const r = await fetch(url);
+        const j = await r.json();
+        const arr = j?.news || j?.items || [];
+        if (arr.length) newsItemsCache = arr;
+      } catch {}
+
+      if (!newsItemsCache.length){
+        // fallback (se /news non esiste ancora)
+        newsItemsCache = [
+          { source:"NextScore", title:"(Demo) Collega un feed reale a /news nel backend per mostrare notizie vere.", url:"#", published_at:new Date().toISOString() },
+          { source:"NextScore", title:"Se /get-odds funziona, le partite devono comparire sotto. Se no: endpoint/parametri errati.", url:"#", published_at:new Date().toISOString() },
+        ];
+      }
+
+      $.newsTrack.innerHTML = newsItemsCache.slice(0,18).map(newsCard).join("");
+      newsTickerX = 0; $.newsTrack.style.transform = "translateX(0)";
+      startNewsTicker();
+    }
+
+    /* ======= API get-odds (come prima) ======= */
+    async function fetchEvents(liveFlag){
+      const sport = chosenSport(), regions = $.regions.value;
+      const count = Math.max(1, Number($.count.value) || 20);
+      const url = new URL(SERVICE_BASE + "/get-odds");
+      url.searchParams.set("sport", sport);
+      url.searchParams.set("regions", regions);
+      url.searchParams.set("live", String(liveFlag));
+      url.searchParams.set("count", String(count));
+      url.searchParams.set("markets", "h2h,totals,btts");
+      const r = await fetch(url, { headers: { "Accept":"application/json" }});
+      return r.json();
+    }
+
+    async function load() {
+      $.status.textContent = "carico…";
+      $.notice.classList.add("hidden");
+      $.favNotice.classList.add("hidden");
+
+      try {
+        const data = await fetchEvents(isLive);
+        let usedData = data, fallbackUsed = false;
+
+        if (isLive && data.ok && (!data.events || data.events.length === 0)) {
+          $.notice.textContent = "Al momento non ci sono match in corso. Mostro i prossimi incontri.";
+          $.notice.classList.remove("hidden");
+          usedData = await fetchEvents(false); fallbackUsed = true;
+        }
+
+        const rate = usedData.rate || {};
+        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
+
+        if (!usedData.ok) {
+          $.cards.innerHTML = empty("Errore upstream /get-odds. Controlla SERVICE_BASE e parametri sport/regions.");
+          $.status.textContent = usedData.error || "errore";
+          return;
+        }
+
+        lastData = usedData.events || [];
+        if (!lastData.length) {
+          $.cards.innerHTML = empty("Nessun evento trovato. Prova: Upcoming + EU, oppure cambia campionato.");
+          $.status.textContent = "ok (0)";
+          return;
+        }
+
+        if (showFavsOnly) filterFavsView(); else renderCards(lastData);
+        $.status.textContent = `ok • ${lastData.length} eventi` + (fallbackUsed ? " (fallback)" : "");
+      } catch (e) {
+        console.error(e);
+        $.cards.innerHTML = empty("Errore di rete/API.");
+        $.status.textContent = "errore";
+      }
+    }
+
+    /* ======= RENDER CARDS ======= */
+    function renderCards(events) { $.cards.innerHTML = events.map(ev => renderCard(ev)).join(""); }
+
+    function renderCard(ev) {
+      const pick = bestOutcome(ev.outcomes || []), over = ev.overrounds?.h2h ?? null;
+      let valueTag = "";
+      if (currentMarket === "h2h" && pick?.prob && pick?.odds) {
+        const fair = fairOdds(pick.prob);
+        valueTag = Number(pick.odds) > fair
+          ? `<span class="ml-2 whitespace-nowrap rounded-full bg-emerald-900/30 text-emerald-300 ring-1 ring-emerald-700 text-xs px-2 py-0.5">Value ✓ (fair ${fair.toFixed(2)})</span>`
+          : `<span class="ml-2 whitespace-nowrap rounded-full bg-slate-800 text-slate-300 ring-1 ring-slate-700 text-xs px-2 py-0.5">Fair ${fair.toFixed(2)}</span>`;
+      }
+      const overBadge = (over != null)
+        ? `<span class="ml-2 whitespace-nowrap text-xs rounded-full px-2 py-0.5 ${over > 102 ? 'bg-rose-900/40 text-rose-300 ring-1 ring-rose-700' : 'bg-emerald-900/30 text-emerald-300 ring-1 ring-emerald-700'}">Overround: ${over}%</span>`
+        : "";
+
+      const fav = isFav(ev.id);
+      const favBtn = `
+        <button title="${fav ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}"
+                class="rounded-lg border border-slate-700 px-2 py-1 text-sm ${fav ? 'fav-on' : 'fav-off'} hover:bg-slate-800"
+                onclick="toggleFav('${ev.id}')">⭐</button>`;
+
+      // NB: non apriamo il drawer all'inizio, solo qui
+      const openBtn = `
+        <button class="rounded-xl bg-amber-600 px-3 py-2 text-white text-sm hover:bg-amber-700"
+                onclick='openChat(${JSON.stringify(ev).replace(/</g,"\\u003c").replace(/>/g,"\\u003e")})'>
+          🧙🏽‍♀️ Il pronostico di BettyAI
+        </button>`;
+
+      return `
+      <article class="bg-slate-800/80 rounded-2xl border border-slate-700 p-4 md:p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-lg font-semibold">
+            ${ev.home_team} <span class="text-slate-500">vs</span> ${ev.away_team}
+            ${overBadge}
+          </h3>
+          <div class="flex items-center gap-2">
+            <div class="text-sm text-slate-400">${fmtDate(ev.commence_time)}</div>
+            ${favBtn}
+          </div>
+        </div>
+
+        <div class="text-sm">
+          <span class="font-medium text-slate-300">Previsione:</span>
+          ${pick ? `${toItOutcome(pick.name)} • ${fmtPct(pick.prob)} • quota ${pick.odds ?? "-"}` : "—"}
+          ${valueTag}
+        </div>
+
+        ${renderMarketSection(ev)}
+
+        <div class="flex items-center gap-2 pt-1">
+          <a class="rounded-xl border border-slate-700 px-3 py-2 text-sm hover:bg-slate-700"
+             href="${buildSiteLink(ev.id)}" target="_blank" rel="noopener">Vai al sito</a>
+          ${openBtn}
+        </div>
+      </article>`;
+    }
+
+    function renderMarketSection(ev) {
+      if (currentMarket === "h2h") {
+        const rows = (ev.outcomes || []).map(o => {
+          const book = o.source?.bookmaker_title || o.source?.bookmaker_key || "-";
+          const aff = o.source?.aff_url || null;
+          const btn = aff
+            ? `<a href="${aff}" target="_blank" rel="nofollow noopener"
+                 class="inline-flex items-center rounded-lg border border-amber-700 text-amber-300 px-2 py-1 text-xs hover:bg-slate-700">Apri</a>`
+            : `<span class="inline-flex items-center rounded-lg border border-slate-700 text-slate-500 px-2 py-1 text-xs">N/D</span>`;
+          return `<tr class="border-t border-slate-700">
+              <td class="py-1.5 pr-2">${toItOutcome(o.name)}</td>
+              <td class="py-1.5 pr-2 font-semibold">${o.odds ?? "-"}</td>
+              <td class="py-1.5 pr-2">${o.prob ? fmtPct(o.prob) : "-"}</td>
+              <td class="py-1.5 pr-2">${book}</td>
+              <td class="py-1.5">${btn}</td>
+            </tr>`;
+        }).join("");
+        return tableWrap(`
+          <thead class="text-slate-400">
+            <tr>
+              <th class="text-left font-medium pb-1 pr-2">Esito</th>
+              <th class="text-left font-medium pb-1 pr-2">Quota</th>
+              <th class="text-left font-medium pb-1 pr-2">Prob.</th>
+              <th class="text-left font-medium pb-1 pr-2">Book</th>
+              <th class="text-left font-medium pb-1">Link</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>`);
+      }
+      if (currentMarket === "totals") {
+        const arr = ev.totals || [];
+        if (!arr.length) return unavailable("Under/Over non disponibili per questo match.");
+        const rows = arr.map(t => {
+          const over = (t.outcomes || []).find(x => /over/i.test(x.name)) || {};
+          const under = (t.outcomes || []).find(x => /under/i.test(x.name)) || {};
+          return `<tr class="border-t border-slate-700">
+              <td class="py-1.5 pr-2">${t.point ?? "-"}</td>
+              <td class="py-1.5 pr-2">${over.odds ?? "-"} ${over.prob ? `(${fmtPct(over.prob)})` : ""}</td>
+              <td class="py-1.5">${under.odds ?? "-"} ${under.prob ? `(${fmtPct(under.prob)})` : ""}</td>
+            </tr>`;
+        }).join("");
+        return tableWrap(`
+          <thead class="text-slate-400">
+            <tr>
+              <th class="text-left font-medium pb-1 pr-2">Linea</th>
+              <th class="text-left font-medium pb-1 pr-2">Over</th>
+              <th class="text-left font-medium pb-1">Under</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>`);
+      }
+      if (currentMarket === "btts") {
+        const btts = ev.btts || ev.both_teams_to_score || null;
+        if (!btts || !(btts.outcomes || []).length) return unavailable("Gol/No Gol non disponibili per questo match.");
+        const yes = (btts.outcomes || []).find(x => /yes/i.test(x.name)) || {};
+        const no  = (btts.outcomes || []).find(x => /no/i.test(x.name))  || {};
+        const row = `<tr class="border-t border-slate-700">
+              <td class="py-1.5 pr-2">${yes.odds ?? "-"} ${yes.prob ? `(${fmtPct(yes.prob)})` : ""}</td>
+              <td class="py-1.5">${no.odds ?? "-"} ${no.prob ? `(${fmtPct(no.prob)})` : ""}</td>
+            </tr>`;
+        return tableWrap(`
+          <thead class="text-slate-400">
+            <tr>
+              <th class="text-left font-medium pb-1 pr-2">Gol</th>
+              <th class="text-left font-medium pb-1">No Gol</th>
+            </tr>
+          </thead>
+          <tbody>${row}</tbody>`);
+      }
+      return "";
+    }
+
+    /* ======= PREFERITI VIEW ======= */
+    function filterFavsView(){
+      const favs = getFavs();
+      const inDataset = lastData.filter(e => favs.includes(e.id));
+      const missing = favs.filter(id => !lastData.some(e => e.id === id));
+      if (!favs.length){
+        $.cards.innerHTML = empty("Non hai ancora salvato preferiti. Aggiungi ⭐ dalle card.");
+        $.favNotice.classList.add("hidden");
+        return;
+      }
+      if (!inDataset.length){
+        $.cards.innerHTML = empty("I preferiti salvati non sono nel feed corrente (cambia campionato o aggiorna).");
+      } else {
+        renderCards(inDataset);
+      }
+      if (missing.length){
+        $.favNotice.textContent = `Nota: ${missing.length} preferiti non sono nel feed corrente.`;
+        $.favNotice.classList.remove("hidden");
+      } else {
+        $.favNotice.classList.add("hidden");
+      }
+    }
+
+    /* ======= CHAT (come prima, ma apre drawer) ======= */
+    function userSay(text){ $.chatFeed.insertAdjacentHTML("beforeend",
+      `<div class="flex justify-end"><div class="max-w-[80%] bg-amber-600 text-white rounded-2xl rounded-br-sm px-3 py-2 text-sm whitespace-pre-wrap">${esc(text)}</div></div>`); $.chatFeed.scrollTop=$.chatFeed.scrollHeight; }
+    function botSay(text){ $.chatFeed.insertAdjacentHTML("beforeend",
+      `<div class="flex"><div class="max-w-[85%] bg-slate-800 border border-slate-700 rounded-2xl rounded-bl-sm px-3 py-2 text-sm whitespace-pre-wrap">${linkify(esc(text))}</div></div>`); $.chatFeed.scrollTop=$.chatFeed.scrollHeight; }
+    function botThinking(){ const id="thinking-"+Math.random().toString(36).slice(2);
+      $.chatFeed.insertAdjacentHTML("beforeend",
+      `<div id="${id}" class="flex"><div class="max-w-[85%] bg-slate-800/70 border border-slate-700 rounded-2xl rounded-bl-sm px-3 py-2 text-sm italic">Sto elaborando…</div></div>`); $.chatFeed.scrollTop=$.chatFeed.scrollHeight; return id; }
+    function removeBubble(id){ const n=document.getElementById(id); if(n) n.remove(); }
+
+    async function fetchBettyAnalysis(eventObj, promptText) {
+      function clientFallback(){
+        const pick = (eventObj?.outcomes||[]).slice().sort((a,b)=> (b.prob||0)-(a.prob||0))[0];
+        let t = `Brief rapido: ${eventObj.home_team} vs ${eventObj.away_team}\n`;
+        if (pick?.prob){
+          const fair = (100/Number(pick.prob)).toFixed(2);
+          t += `Pronostico: ${toItOutcome(pick.name)} (${fmtPct(pick.prob)} — quota ${pick.odds ?? "-"}, fair ${fair})`;
+        }
+        return t;
+      }
+      try {
+        const r = await fetch(`${BETTY_CHAT_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ prompt: promptText || "", event: eventObj || null, history: chatHistory.slice(-8) })
+        });
+        let data = null; try { data = await r.json(); } catch {}
+        if (!r.ok) throw new Error((data && (data.error || data.message)) || `HTTP ${r.status}`);
+        const text = (data && (data.content || data.output_text || data.text || data.message)) || "";
+        if (!String(text).trim()) throw new Error("vuota");
+        return String(text).trim();
+      } catch {
+        return clientFallback();
+      }
+    }
+
+    function setDrawerTab(t){
+      $.tabA.className = "px-3 py-1.5 text-sm bg-slate-800 text-slate-200 hover:bg-slate-700";
+      $.tabI.className = "px-3 py-1.5 text-sm bg-slate-800 text-slate-200 hover:bg-slate-700";
+      $.tabN.className = "px-3 py-1.5 text-sm bg-slate-800 text-slate-200 hover:bg-slate-700";
+      $.areaA.classList.add("hidden");
+      $.areaI.classList.add("hidden");
+      $.areaN.classList.add("hidden");
+      if (t==='A'){ $.areaA.classList.remove("hidden"); $.tabA.className="px-3 py-1.5 text-sm bg-amber-600 text-white"; }
+      if (t==='I'){ $.areaI.classList.remove("hidden"); $.tabI.className="px-3 py-1.5 text-sm bg-amber-600 text-white"; }
+      if (t==='N'){ $.areaN.classList.remove("hidden"); $.tabN.className="px-3 py-1.5 text-sm bg-amber-600 text-white"; }
+    }
+    $.tabA.onclick = () => setDrawerTab('A');
+    $.tabI.onclick = () => setDrawerTab('I');
+    $.tabN.onclick = () => setDrawerTab('N');
+
+    // Match News via /news (deve essere reale)
+    function newsRow(n){
+      const src = esc(n.source || "Fonte");
+      const t   = esc(n.title  || "");
+      const d   = n.published_at ? esc(fmtDate(n.published_at)) : "";
+      const lnk = n.url ? `<a class="text-amber-300 underline" target="_blank" rel="noopener" href="${esc(n.url)}">leggi</a>` : "";
+      return `<article class="border border-slate-700 rounded-xl p-3 bg-slate-800/60">
+        <div class="text-[11px] text-slate-400 mb-1">${src}${d ? " • "+d : ""}</div>
+        <div class="text-sm">${t}</div>
+        <div class="text-[12px] mt-1">${lnk}</div>
+      </article>`;
+    }
+    async function loadMatchNews(ev){
+      $.matchNews.innerHTML = `<div class="text-sm text-slate-400">Carico notizie…</div>`;
+      let arr = [];
+      try {
+        const url = new URL(SERVICE_BASE + "/news");
+        url.searchParams.set("lang", "it");
+        url.searchParams.set("q", `${ev.home_team} ${ev.away_team}`);
+        const r = await fetch(url);
+        const j = await r.json();
+        arr = j?.news || j?.items || [];
+      } catch {}
+      if (!arr.length){
+        arr = [{ source:"NextScore", title:`(Demo) Collega /news backend per news reali su ${ev.home_team} vs ${ev.away_team}`, published_at:new Date().toISOString(), url:"#"}];
+      }
+      $.matchNews.innerHTML = arr.slice(0,10).map(newsRow).join("");
+    }
+
+    // Injuries: usa i tuoi endpoint se esistono, altrimenti fallback
+    async function loadInjuriesForMatch({ fixtureId=null } = {}) {
+      $.injuriesBox.innerHTML = `<p class="muted">Carico assenze…</p>`;
+      try {
+        const r = await fetch(`${SERVICE_BASE}/injuries?fixture=${encodeURIComponent(fixtureId)}`);
+        const j = await r.json();
+        const raw = j?.response || j?.injuries || [];
+        if (!raw.length) { $.injuriesBox.innerHTML = `<p class="muted">Nessuna assenza rilevante al momento.</p>`; return; }
+        const html = raw.slice(0,25).map(it => {
+          const team = it?.team?.name || "Team";
+          const player = it?.player?.name || "Giocatore";
+          const status = (it?.type || it?.status || "Out").toString();
+          const reason = it?.reason ? ` — <em>${esc(it.reason)}</em>` : "";
+          return `<li><strong>${esc(team)}</strong>: ${esc(player)} — <b>${esc(status)}</b>${reason}</li>`;
+        }).join("");
+        $.injuriesBox.innerHTML = `<ul class="injuries-list">${html}</ul>`;
+      } catch {
+        $.injuriesBox.innerHTML = `<p class="muted">(Demo) Endpoint /injuries non disponibile.</p>`;
+      }
+    }
+
+    window.openChat = async function(ev){
+      currentEvent = ev; chatHistory = [];
+      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
+      $.chatSub.textContent   = fmtDate(ev.commence_time);
+      $.chatFeed.innerHTML    = "";
+      setDrawerTab('A');
+      openDrawer();
+
+      initInProgress = true; disableForm(true);
+      const thId = botThinking();
+      const first = await fetchBettyAnalysis(currentEvent, "OPENING_ANALYSIS");
+      removeBubble(thId); botSay(first);
+      chatHistory.push({ role: "assistant", content: first });
+      initInProgress = false; disableForm(false);
+
+      // queste due dipendono dal backend
+      loadInjuriesForMatch({ fixtureId: ev.id });
+      loadMatchNews(ev);
+
+      $.chatInput.focus();
+    }
+
+    $.chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const t = $.chatInput.value.trim(); if (!t) return;
+      $.chatInput.value = "";
+      if (!currentEvent) { userSay(t); botSay("Seleziona prima un match dalla lista."); return; }
+      if (initInProgress) { queuedText = t; userSay(t); return; }
+      userSay(t); chatHistory.push({ role: "user", content: t });
+      const th = botThinking();
+      const text = await fetchBettyAnalysis(currentEvent, t);
+      removeBubble(th); botSay(text);
+      chatHistory.push({ role: "assistant", content: text });
+    });
+
+    /* ======= Tabs & Markets ======= */
+    function setTab(live){
+      isLive=live; showFavsOnly=false;
+      $.tabLive.classList.toggle("tab-on", live); $.tabLive.classList.toggle("tab-off", !live);
+      $.tabUpcoming.classList.toggle("tab-on", !live); $.tabUpcoming.classList.toggle("tab-off", live);
+      $.tabFavs.classList.remove("tab-on"); $.tabFavs.classList.add("tab-off");
+      load(); clearInterval(liveTimer); if(live) liveTimer=setInterval(load,15000);
+    }
+    $.tabUpcoming.addEventListener("click", () => setTab(false));
+    $.tabLive.addEventListener("click", () => setTab(true));
+    $.refresh.addEventListener("click", load);
+
+    $.tabFavs.addEventListener("click", () => {
+      showFavsOnly = true;
+      $.tabFavs.classList.add("tab-on"); $.tabFavs.classList.remove("tab-off");
+      $.tabLive.classList.remove("tab-on"); $.tabLive.classList.add("tab-off");
+      $.tabUpcoming.classList.remove("tab-on"); $.tabUpcoming.classList.add("tab-off");
+      clearInterval(liveTimer);
+      filterFavsView();
+    });
+
+    function setMarket(mkt){
+      currentMarket = mkt;
+      $.mktH2H.classList.toggle("mkt-on", mkt==="h2h"); $.mktH2H.classList.toggle("mkt-off", mkt!=="h2h");
+      $.mktTotals.classList.toggle("mkt-on", mkt==="totals"); $.mktTotals.classList.toggle("mkt-off", mkt!=="totals");
+      $.mktBTTS.classList.toggle("mkt-on", mkt==="btts"); $.mktBTTS.classList.toggle("mkt-off", mkt!=="btts");
+      if (showFavsOnly) filterFavsView(); else renderCards(lastData);
+    }
+    $.mktH2H.addEventListener("click", () => setMarket("h2h"));
+    $.mktTotals.addEventListener("click", () => setMarket("totals"));
+    $.mktBTTS.addEventListener("click", () => setMarket("btts"));
+
+    $.sport.addEventListener("change", () => {
+      const custom = $.sport.value === "custom";
+      $.sportCustom.classList.toggle("hidden", !custom);
+      if (custom) $.sportCustom.focus();
+      fetchGlobalNews();
+    });
+
+    /* ======= INIT ======= */
+    updateFavCount();
+    closeDrawer();         // chat chiusa all’avvio
+    setTab(false);         // carica upcoming
+    fetchGlobalNews();     // carosello news (reale se /news esiste)
+  </script>
+</body>
+</html>
