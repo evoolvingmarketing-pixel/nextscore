@@ -98,7 +98,10 @@
       border:1px solid rgba(245,158,11,.30);
       font-size:18px;
       flex:0 0 auto;
+      overflow:hidden;
     }
+    .avatar img{ width:100%; height:100%; object-fit:cover; }
+
     .modalBody{
       padding:14px 14px 0 14px;
       overflow:auto;
@@ -130,9 +133,7 @@
       color:#fff;
       border:1px solid rgba(2,6,23,.18);
     }
-    .bubbleBetty{
-      background:#fff;
-    }
+    .bubbleBetty{ background:#fff; }
     .miniName{
       font-size:12px;
       color:#0f172a;
@@ -184,6 +185,26 @@
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
+    }
+
+    .teamRow{
+      display:flex; align-items:center; gap:10px;
+      margin-top:8px;
+      flex-wrap:wrap;
+    }
+    .teamPill{
+      display:flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:#fff;
+      font-size:12px;
+      font-weight:800;
+      color:#0f172a;
+    }
+    .teamLogo{
+      width:18px;height:18px;border-radius:999px;
+      object-fit:cover;
     }
   </style>
 </head>
@@ -271,15 +292,19 @@
         <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
       </div>
 
-      <div class="microTabs">
+      <div class="microTabs" id="tabsBar">
         <button class="tabBtn active" data-mode="OPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS">Under/Over</button>
         <button class="tabBtn" data-mode="BTTS">Gol/NoGol</button>
         <button class="tabBtn" data-mode="EXACT">Risultato Esatto</button>
+        <button class="tabBtn" data-mode="SCORER">Marcatore</button>
       </div>
 
       <div class="modalBody">
         <div id="chatTitle" class="text-sm font-extrabold text-slate-900 mt-2 mb-2"></div>
+
+        <div id="teamsRow" class="teamRow hidden"></div>
+
         <div id="chatFeed" class="chatFeed"></div>
       </div>
 
@@ -294,7 +319,13 @@
     /* ===== CONFIG ===== */
     const SERVICE_BASE   = "https://get-odds-299332443653.europe-west8.run.app";
     const BETTY_CHAT_URL = "https://betty-chat-299332443653.europe-west8.run.app";
-    const MAX_COUNT = 100;
+
+    // ✅ METTI QUI IL TUO CLOUD RUN football-hub
+    const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
+
+    const MAX_COUNT = 500; // mostra "tutte" (comunque limitato dal backend/mercati)
+    const TZ_DEFAULT = "Europe/Rome";
+    const SEASON_DEFAULT = "2025";
 
     /* ===== DEMO DATA (fallback quando rate=0 o ok=false) ===== */
     function buildDemoEvents(){
@@ -323,8 +354,6 @@
         mk("demo_6","Milan","Napoli",380),
         mk("demo_7","Atalanta","Roma",430),
         mk("demo_8","Chelsea","Man City",500),
-        mk("demo_9","Tottenham","Newcastle",560),
-        mk("demo_10","Atletico","Sevilla",620),
       ];
     }
 
@@ -350,6 +379,8 @@
       chatFeed: el("chatFeed"),
       chatInput: el("chatInput"),
       sendBtn: el("sendBtn"),
+      tabsBar: el("tabsBar"),
+      teamsRow: el("teamsRow"),
       tabBtns: Array.from(document.querySelectorAll(".tabBtn")),
     };
 
@@ -368,10 +399,26 @@
         return d.toLocaleString(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
       }catch{ return iso; }
     }
+    function isoDateOnly(iso){
+      try{
+        const d = new Date(iso);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth()+1).padStart(2,"0");
+        const dd = String(d.getDate()).padStart(2,"0");
+        return `${yyyy}-${mm}-${dd}`;
+      }catch{
+        return "";
+      }
+    }
+
     function chosenSport(){
       return ($.sport.value === "custom" && $.sportCustom.value.trim())
         ? $.sportCustom.value.trim()
         : $.sport.value;
+    }
+    function isSoccerSport(){
+      const s = chosenSport();
+      return /^soccer_/i.test(s);
     }
     function bestOutcome(outcomes=[]){
       return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
@@ -393,7 +440,17 @@
       `;
     }
 
-    /* ===== API ===== */
+    function setDemoMode(on){
+      isDemoMode = !!on;
+      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    }
+
+    function safeJson(obj){
+      const s = JSON.stringify(obj || {});
+      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+    }
+
+    /* ===== API (ODDS) ===== */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -407,11 +464,50 @@
       return r.json();
     }
 
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    /* ===== API (FOOTBALL HUB CONTEXT) ===== */
+    async function fetchJson(url){
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      let data = null;
+      try{ data = await r.json(); }catch{}
+      if (!r.ok) throw new Error(data?.error || data?.message || ("HTTP "+r.status));
+      return data;
     }
 
+    async function enrichSoccerContext(ev){
+      // Se non è calcio o siamo in demo → non facciamo nulla
+      if (!isSoccerSport() || isDemoMode) return { context: null, resolve: null };
+
+      const date = isoDateOnly(ev.commence_time);
+      if (!date) return { context: null, resolve: null };
+
+      // 1) resolve fixture id
+      const u1 = new URL(FOOTBALL_HUB_BASE + "/resolve");
+      u1.searchParams.set("home", ev.home_team);
+      u1.searchParams.set("away", ev.away_team);
+      u1.searchParams.set("date", date);
+
+      const resolved = await fetchJson(u1.toString());
+
+      // resolved.fixture?.fixture?.id oppure resolved.response?.fixture?.id → gestiamo entrambe
+      const fixtureId =
+        resolved?.fixture?.fixture?.id ||
+        resolved?.fixture?.id ||
+        resolved?.response?.fixture?.id ||
+        resolved?.response?.[0]?.fixture?.id ||
+        null;
+
+      if (!fixtureId) return { context: null, resolve: resolved };
+
+      // 2) context completo
+      const u2 = new URL(FOOTBALL_HUB_BASE + "/context");
+      u2.searchParams.set("fixture", String(fixtureId));
+
+      const ctx = await fetchJson(u2.toString());
+
+      return { context: ctx, resolve: resolved, fixtureId };
+    }
+
+    /* ===== LOAD + RENDER ===== */
     async function load(){
       $.status.textContent = "stato: carico…";
       hideNotice();
@@ -421,17 +517,12 @@
         const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
-        // ✅ Se rate finito o ok=false → DEMO MODE
         const remaining = Number(rate.remaining ?? NaN);
         const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
 
         if (mustDemo){
           setDemoMode(true);
-
-          showNotice(
-            "⚠️ Limite chiamate raggiunto (remaining=0). Attivo la modalità DEMO per non fermare la pagina."
-          );
-
+          showNotice("⚠️ Limite chiamate raggiunto (remaining=0). Attivo la modalità DEMO per non fermare la pagina.");
           lastData = buildDemoEvents();
           $.status.textContent = "stato: demo";
           $.chipCount.textContent = `match: ${lastData.length || 0}`;
@@ -439,7 +530,6 @@
           return;
         }
 
-        // ✅ LIVE MODE
         setDemoMode(false);
 
         lastData = data.events || [];
@@ -455,8 +545,6 @@
         $.status.textContent = "stato: ok";
       }catch(e){
         console.error(e);
-
-        // fallback rete: demo
         setDemoMode(true);
         showNotice("⚠️ Problema di rete/backend. Attivo la modalità DEMO.");
         lastData = buildDemoEvents();
@@ -464,12 +552,6 @@
         renderCards(lastData);
         $.status.textContent = "stato: demo";
       }
-    }
-
-    /* ===== RENDER ===== */
-    function safeJson(obj){
-      const s = JSON.stringify(obj || {});
-      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
 
     function renderCards(events){
@@ -569,7 +651,60 @@
       if (n) n.remove();
     }
 
+    function renderTeamsRowFromContext(ctx){
+      // prova a prendere loghi da context (API-Football)
+      // possibili path: ctx.context?.fixture?.teams?.home?.logo ecc
+      const homeLogo =
+        ctx?.context?.fixture?.teams?.home?.logo ||
+        ctx?.fixture?.teams?.home?.logo ||
+        null;
+
+      const awayLogo =
+        ctx?.context?.fixture?.teams?.away?.logo ||
+        ctx?.fixture?.teams?.away?.logo ||
+        null;
+
+      if (!homeLogo && !awayLogo) {
+        $.teamsRow.classList.add("hidden");
+        $.teamsRow.innerHTML = "";
+        return;
+      }
+
+      const hName = currentEvent?.home_team || "Home";
+      const aName = currentEvent?.away_team || "Away";
+
+      $.teamsRow.innerHTML = `
+        <div class="teamPill">
+          ${homeLogo ? `<img class="teamLogo" src="${esc(homeLogo)}" alt="${esc(hName)}" />` : ""}
+          <span>${esc(hName)}</span>
+        </div>
+        <div class="teamPill">
+          ${awayLogo ? `<img class="teamLogo" src="${esc(awayLogo)}" alt="${esc(aName)}" />` : ""}
+          <span>${esc(aName)}</span>
+        </div>
+      `;
+      $.teamsRow.classList.remove("hidden");
+    }
+
+    function updateTabsVisibility(){
+      const soccer = isSoccerSport();
+      $.tabsBar.style.display = soccer ? "flex" : "none";
+      // se non calcio, blocchiamo i mode calcistici
+      if (!soccer) {
+        setMode("OPEN");
+      }
+    }
+
     /* ===== BETTY CALL ===== */
+    function modeSeedPrompt(mode){
+      // prompt “guidato” per farle usare i dati che le passiamo
+      if (mode === "TOTALS") return "Genera una lettura Under/Over (spiega ritmo, gol fatti/subiti, trend recente, h2h e indisponibili). Se non hai un dato nel contesto, dillo chiaramente.";
+      if (mode === "BTTS")   return "Genera una lettura Gol/NoGol (BTTS). Usa forma, gol fatti/subiti, h2h, stile di gioco e indisponibili. Se manca un dato nel contesto, dillo.";
+      if (mode === "EXACT")  return "Azzarda 1–2 risultati esatti plausibili basandoti su forma, gol fatti/subiti, h2h e indisponibili. Motivali. Se mancano dati, riduci confidenza.";
+      if (mode === "SCORER") return "Suggerisci 1–3 possibili marcatori usando top scorers, ruoli (se presenti), forma e indisponibili. Se non hai rose/ruoli nel contesto, spiegalo e proponi solo in base ai marcatori e trend.";
+      return "Analisi completa: classifica, forma (ultime), h2h, indisponibili, gol fatti/subiti. Chiudi con 1X2 più probabile e perché. Se mancano dati nel contesto, dillo.";
+    }
+
     async function askBetty(userText){
       if (!currentEvent){
         addBettyBubble("Seleziona prima un match 😊");
@@ -580,6 +715,7 @@
         mode: currentMode,
         prompt: userText || "",
         event: currentEvent,
+        context: currentEvent.__context || null, // ✅ qui passa tutto il contesto del football-hub
         history: chatHistory.slice(-10),
         demo: isDemoMode
       };
@@ -600,15 +736,15 @@
         if (!text) throw new Error("Risposta vuota");
         return text;
       }catch(e){
-        // fallback demo senza backend
         const pick = bestOutcome(currentEvent?.outcomes || []);
         const base = pick ? `Lettura rapida: scenario più probabile **${toItOutcome(pick.name)}**.` : "Lettura rapida disponibile.";
-        const modeHint =
-          (currentMode === "TOTALS") ? "Under/Over: se vuoi, dimmi la linea (2.5 / 3.5) e azzardo lo scenario."
-        : (currentMode === "BTTS") ? "Gol/NoGol: ti dico quale sembra più coerente coi ritmi."
+        const hint =
+          (currentMode === "TOTALS") ? "Under/Over: dimmi la linea (2.5 / 3.5) e azzardo lo scenario."
+        : (currentMode === "BTTS") ? "Gol/NoGol: ti dico quale sembra più coerente."
         : (currentMode === "EXACT") ? "Risultato esatto: posso azzardare 1–2 score realistici (solo gioco)."
+        : (currentMode === "SCORER") ? "Marcatore: dimmi 1–2 nomi (o ruolo) e azzardo."
         : "Chiedimi: forma, ritmo, fasi, cosa aspettarti nel match.";
-        return `${base}\n${modeHint}\n\n(Modalità demo: niente quote, solo intrattenimento.)`;
+        return `${base}\n${hint}\n\n(Se betty-chat è giù: modalità demo, niente dati.)`;
       }
     }
 
@@ -616,15 +752,44 @@
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
+      updateTabsVisibility();
 
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
       $.chatSub.textContent = fmtDate(ev.commence_time);
       $.chatFeed.innerHTML = "";
+      $.teamsRow.classList.add("hidden");
+      $.teamsRow.innerHTML = "";
+
       setMode("OPEN");
       openModal();
 
+      // 1) carico contesto calcio (classifica/forma/h2h/injuries/topscorers)
+      let ctx = null;
+      if (isSoccerSport() && !isDemoMode) {
+        const th0 = addThinking();
+        try{
+          const enriched = await enrichSoccerContext(ev);
+          ctx = enriched?.context || null;
+          currentEvent.__context = ctx;
+
+          // prova a renderizzare i loghi se ci sono
+          renderTeamsRowFromContext(ctx);
+
+          removeThinking(th0);
+          addBettyBubble("Ok, ho caricato classifica/forma/h2h/indisponibili. Procedo con l’analisi 👇");
+        }catch(err){
+          console.error(err);
+          removeThinking(th0);
+          addBettyBubble("Non riesco a caricare il contesto (classifica/forma) in questo momento. Posso comunque fare una lettura ‘leggera’.");
+          currentEvent.__context = null;
+        }
+      } else {
+        currentEvent.__context = null;
+      }
+
+      // 2) richiesta analisi
       const th = addThinking();
-      const opening = await askBetty("OPENING_ANALYSIS");
+      const opening = await askBetty(modeSeedPrompt("OPEN"));
       removeThinking(th);
 
       addBettyBubble(opening);
@@ -638,17 +803,24 @@
       const custom = $.sport.value === "custom";
       $.sportCustom.classList.toggle("hidden", !custom);
       if (custom) $.sportCustom.focus();
+      updateTabsVisibility();
     });
 
     $.tabBtns.forEach(btn=>{
-      btn.addEventListener("click", ()=>{
+      btn.addEventListener("click", async ()=>{
+        // Tabs solo per calcio: se non calcio, ignora
+        if (!isSoccerSport()) return;
+
         setMode(btn.dataset.mode);
-        addBettyBubble(
-          btn.dataset.mode === "TOTALS" ? "Modalità Under/Over attiva. Vuoi una linea specifica?"
-          : btn.dataset.mode === "BTTS" ? "Modalità Gol/NoGol attiva. Ti dico lo scenario più plausibile."
-          : btn.dataset.mode === "EXACT" ? "Modalità Risultato Esatto attiva. Azzardo 1–2 score coerenti."
-          : "Modalità Analisi attiva. Fammi una domanda libera."
-        );
+
+        // auto-risposta "ragionata" sul tab
+        const th = addThinking();
+        const seed = modeSeedPrompt(btn.dataset.mode);
+        const ans = await askBetty(seed);
+        removeThinking(th);
+
+        addBettyBubble(ans);
+        chatHistory.push({ role:"assistant", content: ans });
       });
     });
 
@@ -680,6 +852,7 @@
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
     /* ===== INIT ===== */
+    updateTabsVisibility();
     load();
   </script>
 </body>
