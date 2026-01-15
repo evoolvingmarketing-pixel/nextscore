@@ -3,857 +3,968 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NextScore — Match Center (Light)</title>
+  <title>NextScore Match Center</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --bg:#ffffff;
-      --panel:#ffffff;
-      --text:#0f172a;
-      --muted:#64748b;
-      --border:rgba(2,6,23,.10);
-      --shadow: 0 16px 40px rgba(2,6,23,.08);
-      --accent:#f59e0b;
-      --accent2:#fb923c;
-      --soft:#fff7ed;
+      --bg1:#fbf7ef;
+      --bg2:#eef4ff;
+      --card:#ffffff;
+      --text:#0e1420;
+      --muted:#5f6b7a;
+      --line:rgba(15,25,40,.10);
+      --shadow: 0 18px 60px rgba(0,0,0,.10);
+      --shadow2: 0 10px 30px rgba(0,0,0,.08);
+      --radius: 26px;
+      --accent:#f59a17;
+      --accent2:#ffb44c;
+      --good:#18a34a;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --pill:#f4f6fb;
     }
-    html,body{ font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
-    .cardShadow{ box-shadow: var(--shadow); }
-    .chip{
-      font-size:12px; line-height:1;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid var(--border);
-      background: #fff;
-      color:#0f172a;
-      white-space:nowrap;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Roboto, system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 600px at 20% 15%, rgba(245,154,23,.18), transparent 60%),
+        radial-gradient(900px 600px at 75% 5%, rgba(70,120,255,.16), transparent 60%),
+        linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 70%);
+      min-height:100vh;
+    }
+    .wrap{
+      width:min(1200px, calc(100% - 44px));
+      margin: 40px auto 70px;
+    }
+    h1{
+      margin:0;
+      font-size: clamp(36px, 4.6vw, 64px);
+      line-height:1.05;
+      letter-spacing:-.02em;
+    }
+    .brand-accent{color:var(--accent)}
+    .sub{
+      margin:12px 0 0;
+      font-size: clamp(16px, 1.5vw, 20px);
+      color:var(--muted);
+      max-width: 820px;
+    }
+
+    .panel{
+      margin-top:24px;
+      background: rgba(255,255,255,.62);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .controls{
+      display:grid;
+      grid-template-columns: 1.25fr auto;
+      gap:16px;
+      align-items:end;
+    }
+    .control{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    label{
+      color:#2b3646;
+      font-weight:800;
+      font-size:14px;
+    }
+    select, input{
+      width:100%;
+      height:52px;
+      border-radius: 18px;
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.90);
+      padding: 0 14px;
+      font-size:16px;
+      outline:none;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+    }
+    .hint{
+      color:var(--muted);
+      font-size:13px;
+      margin-top:-4px;
     }
     .btn{
-      border-radius:14px;
-      padding:10px 14px;
-      font-weight:800;
-      border:1px solid var(--border);
-      background:#fff;
-      transition: transform .08s ease, box-shadow .12s ease;
-    }
-    .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 24px rgba(2,6,23,.10); }
-    .btnPrimary{
-      border:1px solid rgba(245,158,11,.35);
+      height:52px;
+      border-radius: 18px;
+      border:0;
+      cursor:pointer;
+      padding: 0 22px;
+      font-weight:900;
+      font-size:18px;
+      color:#1b1202;
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      box-shadow: 0 18px 44px rgba(245,154,23,.35);
+    }
+    .btn:active{transform: translateY(1px)}
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+    }
+    .chip{
+      background: var(--pill);
+      border:1px solid rgba(15,25,40,.10);
+      padding:10px 12px;
+      border-radius:999px;
+      font-size:14px;
+      color:#334155;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:700;
+    }
+    .chip b{color:#111827}
+
+    .grid{
+      margin-top:22px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:18px;
+    }
+    @media (max-width: 960px){
+      .controls{grid-template-columns:1fr}
+      .grid{grid-template-columns:1fr}
+    }
+
+    .card{
+      background: rgba(255,255,255,.78);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow2);
+      padding: 18px;
+      position:relative;
+      overflow:hidden;
+      min-height: 200px;
+    }
+    .card h3{
+      margin:0;
+      font-size: 24px;
+      letter-spacing:-.01em;
+    }
+    .meta{
+      margin-top:6px;
+      color: var(--muted);
+      font-weight:700;
+    }
+    .badge{
+      position:absolute;
+      right:16px;
+      top:16px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-weight:900;
+      font-size: 13px;
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.8);
       color:#111827;
     }
-    .btnPrimary:hover{ box-shadow:0 16px 40px rgba(245,158,11,.22); }
-    .input{
-      width:100%;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background:#fff;
-      padding:10px 12px;
-      color:#0f172a;
-      outline:none;
+    .badge.live{color:#065f46; border-color: rgba(6,95,70,.18); background: rgba(16,185,129,.10);}
+    .badge.next{color:#1f3b8a; border-color: rgba(31,59,138,.18); background: rgba(59,130,246,.10);}
+
+    .teams{
+      margin-top:14px;
+      border:1px solid rgba(15,25,40,.10);
+      border-radius: 18px;
+      background: rgba(255,255,255,.85);
+      padding: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
     }
-    .input:focus{
-      border-color: rgba(245,158,11,.55);
-      box-shadow: 0 0 0 4px rgba(245,158,11,.14);
+    .team{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 0;
+      flex:1;
+    }
+    .team.right{justify-content:flex-end}
+    .logo{
+      width:44px;height:44px;border-radius:999px;
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.95);
+      object-fit: contain;
+      padding: 6px;
+      flex:0 0 auto;
+    }
+    .tname{
+      font-size:18px;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .vs{
+      flex:0 0 auto;
+      font-weight:900;
+      color:#7c4a00;
+      background: rgba(245,154,23,.16);
+      border:1px solid rgba(245,154,23,.28);
+      padding: 6px 10px;
+      border-radius: 999px;
+      min-width: 44px;
+      text-align:center;
+    }
+
+    .cta{
+      margin-top:14px;
+      display:flex;
+      justify-content:center;
+    }
+    .cta button{
+      border:0;
+      cursor:pointer;
+      border-radius: 18px;
+      padding: 14px 18px;
+      width: min(360px, 100%);
+      font-size: 18px;
+      font-weight: 900;
+      color:#1b1202;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      box-shadow: 0 18px 44px rgba(245,154,23,.32);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
     }
 
     /* Modal */
-    .modalOverlay{
-      position:fixed; inset:0;
-      background: rgba(2,6,23,.45);
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.46);
       display:none;
-      align-items:flex-end;
-      justify-content:center;
-      padding:14px;
-      z-index:9999;
-    }
-    .modalOverlay.show{ display:flex; }
-    .modal{
-      width:100%;
-      max-width:980px;
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:22px;
-      box-shadow: 0 24px 70px rgba(2,6,23,.22);
-      overflow:hidden;
-      max-height: 92vh;
-      display:flex;
-      flex-direction:column;
-    }
-    .modalHeader{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid var(--border);
-      background: linear-gradient(180deg, #ffffff 0%, #fffaf2 100%);
-    }
-    .avatar{
-      width:34px; height:34px;
-      border-radius:999px;
-      display:inline-flex;
       align-items:center;
       justify-content:center;
-      background: #fff7ed;
-      border:1px solid rgba(245,158,11,.30);
-      font-size:18px;
-      flex:0 0 auto;
+      padding: 18px;
+      z-index: 9999;
+    }
+    .overlay.show{display:flex}
+    .modal{
+      width: min(980px, 100%);
+      max-height: min(86vh, 900px);
+      background: rgba(255,255,255,.88);
+      border:1px solid rgba(255,255,255,.55);
+      border-radius: 26px;
+      box-shadow: 0 30px 120px rgba(0,0,0,.25);
       overflow:hidden;
-    }
-    .avatar img{ width:100%; height:100%; object-fit:cover; }
-
-    .modalBody{
-      padding:14px 14px 0 14px;
-      overflow:auto;
-    }
-    .chatFeed{
-      padding:4px 2px 12px 2px;
       display:flex;
       flex-direction:column;
-      gap:10px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
-    .bubbleRow{
+    .modalHead{
+      padding: 14px 18px;
+      background: rgba(251, 240, 224, .88);
+      border-bottom:1px solid rgba(15,25,40,.08);
       display:flex;
-      gap:10px;
-      align-items:flex-end;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
     }
-    .bubble{
-      max-width: 820px;
-      border-radius:18px;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      background:#fff;
-      line-height:1.35;
-      font-size:14px;
-      white-space:pre-wrap;
+    .mhLeft{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 0;
     }
-    .bubbleUser{
-      margin-left:auto;
-      background:#111827;
-      color:#fff;
-      border:1px solid rgba(2,6,23,.18);
-    }
-    .bubbleBetty{ background:#fff; }
-    .miniName{
-      font-size:12px;
-      color:#0f172a;
+    .botBadge{
+      width:38px;height:38px;border-radius:999px;
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.92);
+      display:flex;
+      align-items:center;
+      justify-content:center;
       font-weight:900;
-      margin-bottom:2px;
     }
-    .microTabs{
+    .mhTitle{
       display:flex;
-      gap:8px;
-      padding:10px 14px 0 14px;
-      flex-wrap:wrap;
+      flex-direction:column;
+      min-width:0;
     }
-    .tabBtn{
-      border-radius:999px;
-      padding:8px 12px;
-      font-weight:900;
-      font-size:12px;
-      border:1px solid var(--border);
-      background:#fff;
-      color:#0f172a;
+    .mhTitle b{
+      font-size:18px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    .tabBtn.active{
-      border-color: rgba(245,158,11,.50);
-      background: #fff7ed;
-    }
-    .modalFooter{
-      border-top:1px solid var(--border);
-      padding:10px 12px;
-      display:flex;
-      gap:10px;
-      align-items:flex-end;
-      background:#fff;
-    }
-    .textarea{
-      width:100%;
-      min-height:44px;
-      max-height:120px;
-      resize:none;
-      border-radius:16px;
-      border:1px solid var(--border);
-      padding:10px 12px;
-      outline:none;
-      font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
-    }
-    .textarea:focus{
-      border-color: rgba(245,158,11,.55);
-      box-shadow: 0 0 0 4px rgba(245,158,11,.14);
-    }
-    @media (min-width: 900px){
-      .modalOverlay{ align-items:center; }
-      .modal{ max-height: 86vh; }
+    .mhTitle span{color:var(--muted); font-weight:700; margin-top:2px}
+    .closeBtn{
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.9);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 900;
+      cursor:pointer;
     }
 
-    .teamRow{
-      display:flex; align-items:center; gap:10px;
-      margin-top:8px;
+    .tabs{
+      padding: 12px 14px;
+      background: rgba(255,255,255,.66);
+      border-bottom:1px solid rgba(15,25,40,.08);
+      display:flex;
+      gap:10px;
       flex-wrap:wrap;
     }
-    .teamPill{
-      display:flex; align-items:center; gap:8px;
-      padding:6px 10px;
-      border:1px solid var(--border);
-      border-radius:999px;
-      background:#fff;
-      font-size:12px;
+    .tab{
+      border:1px solid rgba(15,25,40,.12);
+      background: rgba(255,255,255,.90);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      color:#111827;
+    }
+    .tab.active{
+      border-color: rgba(245,154,23,.42);
+      background: rgba(245,154,23,.12);
+      color:#7c4a00;
+    }
+
+    .chat{
+      padding: 14px;
+      overflow:auto;
+      flex:1;
+      background: rgba(255,255,255,.66);
+    }
+    .msg{
+      max-width: 820px;
+      border:1px solid rgba(15,25,40,.10);
+      background: rgba(255,255,255,.92);
+      border-radius: 18px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.05);
+      margin: 10px 0;
+      white-space: pre-wrap;
+      line-height:1.35;
+    }
+    .msg.me{
+      margin-left:auto;
+      background: rgba(15,25,40,.92);
+      color:#fff;
+      border-color: rgba(15,25,40,.20);
+    }
+    .msg .small{
+      display:block;
+      color: var(--muted);
       font-weight:800;
-      color:#0f172a;
+      font-size: 12px;
+      margin-bottom: 6px;
     }
-    .teamLogo{
-      width:18px;height:18px;border-radius:999px;
-      object-fit:cover;
+    .msg.me .small{color: rgba(255,255,255,.75)}
+    .warnBox{
+      border:1px solid rgba(245,158,11,.25);
+      background: rgba(245,158,11,.10);
     }
+
+    .composer{
+      padding: 12px 14px;
+      border-top:1px solid rgba(15,25,40,.08);
+      background: rgba(255,255,255,.88);
+      display:flex;
+      gap:12px;
+    }
+    .composer input{
+      height:54px;
+      border-radius: 18px;
+      flex:1;
+      font-size: 16px;
+      padding: 0 14px;
+    }
+    .sendBtn{
+      height:54px;
+      border-radius: 18px;
+      border:0;
+      cursor:pointer;
+      padding: 0 18px;
+      font-weight: 900;
+      font-size: 18px;
+      color:#1b1202;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      box-shadow: 0 18px 44px rgba(245,154,23,.30);
+      min-width: 120px;
+    }
+
+    /* Typing indicator */
+    .typing{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+    }
+    .typing .dots{
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+    }
+    .typing .dots i{
+      width:8px;height:8px;border-radius:50%;
+      background:#94a3b8;
+      display:inline-block;
+      animation: b 1.1s infinite ease-in-out;
+      opacity:.6;
+    }
+    .typing .dots i:nth-child(2){animation-delay:.15s}
+    .typing .dots i:nth-child(3){animation-delay:.30s}
+    @keyframes b{
+      0%, 80%, 100% { transform: translateY(0); opacity:.45 }
+      40% { transform: translateY(-4px); opacity:1 }
+    }
+
+    .errorBox{
+      margin-top:18px;
+      padding: 16px;
+      border-radius: 18px;
+      border:1px solid rgba(239,68,68,.22);
+      background: rgba(239,68,68,.08);
+      display:none;
+    }
+    .errorBox.show{display:block}
+    .errorBox b{color:#7f1d1d}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
   </style>
 </head>
 
 <body>
-  <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
-    <header class="flex items-start md:items-center justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
-          NextScore <span class="text-amber-600">Match Center</span>
-        </h1>
-        <p class="text-sm md:text-base text-slate-600 mt-1">
-          Seleziona un match e leggi l’analisi di <strong>Betty</strong> (senza quote).
-        </p>
-      </div>
+  <div class="wrap">
+    <h1>NextScore <span class="brand-accent">Match Center</span></h1>
+    <p class="sub">
+      Seleziona una competizione e leggi l’analisi di Betty <b>con dati reali</b> (classifica, forma, marcatori, indisponibili).
+    </p>
 
-      <div class="text-xs text-slate-500 text-right">
-        <div id="rateInfo">rate: …</div>
-        <div id="statusInfo">stato: pronto</div>
-      </div>
-    </header>
+    <div class="panel">
+      <div class="controls">
+        <div class="control">
+          <label>Competizione</label>
+          <select id="preset">
+            <optgroup label="🇮🇹 Italia">
+              <option value="serieA" selected>Serie A</option>
+              <option value="serieB">Serie B</option>
+              <option value="coppaItalia">Coppa Italia</option>
+            </optgroup>
 
-    <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
-      <div class="p-4 md:p-5">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div class="md:col-span-2">
-            <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
-            <select id="sport" class="input">
-              <option value="soccer_italy_serie_a">Calcio — Serie A</option>
-              <option value="soccer_epl">Calcio — Premier League</option>
-              <option value="soccer_spain_la_liga">Calcio — La Liga</option>
-              <option value="basketball_nba">Basket — NBA</option>
-              <option value="tennis_atp">Tennis — ATP</option>
-              <option value="custom">— Altro (custom) —</option>
-            </select>
-            <input id="sportCustom" type="text" class="input mt-2 hidden" placeholder="es. soccer_uefa_champs_league" />
-            <div class="text-[12px] text-slate-500 mt-1">
-              Suggerimento: per le coppe europee useremo la voce custom (es. Champions/Europa).
-            </div>
-          </div>
+            <optgroup label="🇪🇸 Spagna">
+              <option value="laliga">LaLiga</option>
+            </optgroup>
 
-          <div>
-            <label class="block text-sm font-bold text-slate-800 mb-1">Regione</label>
-            <select id="regions" class="input">
-              <option value="eu">EU</option>
-              <option value="uk">UK</option>
-              <option value="us">US</option>
-              <option value="au">AU</option>
-            </select>
-          </div>
+            <optgroup label="🇫🇷 Francia">
+              <option value="ligue1">Ligue 1</option>
+            </optgroup>
 
-          <div class="flex items-end gap-2">
-            <button id="refreshBtn" class="btn btnPrimary w-full">Aggiorna Match</button>
-          </div>
+            <optgroup label="🇩🇪 Germania">
+              <option value="bundesliga">Bundesliga</option>
+            </optgroup>
+
+            <optgroup label="🇪🇺 Coppe Europee">
+              <option value="ucl">Champions League</option>
+              <option value="uel">Europa League</option>
+              <option value="uecl">Conference League</option>
+            </optgroup>
+
+            <optgroup label="🌍 Mondiali">
+              <option value="worldcup">World Cup</option>
+              <option value="euro">Europei (EURO)</option>
+            </optgroup>
+          </select>
+          <div class="hint">Tabellone da API-Football. (Quote rimosse sotto le partite.)</div>
         </div>
 
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <span class="chip" id="chipCount">match: —</span>
-          <span class="chip" id="chipMode">modalità: live</span>
-          <span class="chip">stile: light premium</span>
-          <span class="chip">AI: Betty 🧙‍♀️</span>
-        </div>
+        <button class="btn" id="btnLoad">Aggiorna Match</button>
       </div>
-    </section>
 
-    <div id="notice" class="hidden mt-4 rounded-2xl border px-4 py-3 text-sm"
-         style="border-color: rgba(245,158,11,.30); background: var(--soft); color:#7c2d12;">
+      <div class="chips">
+        <div class="chip">match: <b id="chipCount">0</b></div>
+        <div class="chip">modalità: <b id="chipMode">live/next</b></div>
+        <div class="chip">AI: <b>Betty 🤖</b></div>
+        <div class="chip">dati: <b>standings</b> • <b>form</b> • <b>injuries</b> • <b>scorers</b></div>
+      </div>
+
+      <div class="errorBox" id="errorBox">
+        <b>❌ Errore</b>
+        <div class="mono" id="errorText" style="margin-top:8px;"></div>
+      </div>
     </div>
 
-    <section id="cards" class="mt-5 grid gap-4 md:grid-cols-2"></section>
+    <div class="grid" id="grid"></div>
   </div>
 
-  <!-- CHAT MODAL -->
-  <div id="modalOverlay" class="modalOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Chat Betty">
-      <div class="modalHeader">
-        <div class="flex items-center gap-3">
-          <div class="avatar" aria-hidden="true">🧙‍♀️</div>
-          <div>
-            <div class="text-sm font-extrabold leading-tight">Betty</div>
-            <div id="chatSub" class="text-xs text-slate-500">Seleziona un match per iniziare</div>
+  <!-- MODAL -->
+  <div class="overlay" id="overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalHead">
+        <div class="mhLeft">
+          <div class="botBadge">🤖</div>
+          <div class="mhTitle">
+            <b id="mhMatch">—</b>
+            <span id="mhWhen">—</span>
           </div>
         </div>
-
-        <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
+        <button class="closeBtn" id="btnClose">Chiudi</button>
       </div>
 
-      <div class="microTabs" id="tabsBar">
-        <button class="tabBtn active" data-mode="OPEN">Analisi</button>
-        <button class="tabBtn" data-mode="TOTALS">Under/Over</button>
-        <button class="tabBtn" data-mode="BTTS">Gol/NoGol</button>
-        <button class="tabBtn" data-mode="EXACT">Risultato Esatto</button>
-        <button class="tabBtn" data-mode="SCORER">Marcatore</button>
+      <div class="tabs">
+        <button class="tab active" data-mode="analisi">Analisi</button>
+        <button class="tab" data-mode="uo">Under/Over</button>
+        <button class="tab" data-mode="btts">Gol/NoGol</button>
+        <button class="tab" data-mode="cs">Risultato Esatto</button>
+        <button class="tab" data-mode="scorer">Marcatore</button>
       </div>
 
-      <div class="modalBody">
-        <div id="chatTitle" class="text-sm font-extrabold text-slate-900 mt-2 mb-2"></div>
+      <div class="chat" id="chat"></div>
 
-        <div id="teamsRow" class="teamRow hidden"></div>
-
-        <div id="chatFeed" class="chatFeed"></div>
-      </div>
-
-      <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?')"></textarea>
-        <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
+      <div class="composer">
+        <input id="q" placeholder="(opzionale) fai una domanda a Betty…" />
+        <button class="sendBtn" id="btnSend">Invia</button>
       </div>
     </div>
   </div>
 
   <script>
-    /* ===== CONFIG ===== */
-    const SERVICE_BASE   = "https://get-odds-299332443653.europe-west8.run.app";
-    const BETTY_CHAT_URL = "https://betty-chat-299332443653.europe-west8.run.app";
+    /***********************
+     * CONFIG
+     ***********************/
+    const API_BASE   = "https://football-hub-299332443653.europe-west8.run.app";
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
 
-    // ✅ METTI QUI IL TUO CLOUD RUN football-hub
-    const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
+    /***********************
+     * PRESET (manuali)
+     ***********************/
+    const PRESETS = {
+      // 🇮🇹 Italia
+      serieA:      { league: 135, season: 2025 },
+      serieB:      { league: 136, season: 2025 },
+      coppaItalia: { league: 137, season: 2025 },
 
-    const MAX_COUNT = 500; // mostra "tutte" (comunque limitato dal backend/mercati)
-    const TZ_DEFAULT = "Europe/Rome";
-    const SEASON_DEFAULT = "2025";
+      // 🇪🇸 Spagna
+      laliga:      { league: 140, season: 2025 },
 
-    /* ===== DEMO DATA (fallback quando rate=0 o ok=false) ===== */
-    function buildDemoEvents(){
-      const now = Date.now();
-      const mk = (id, home, away, mins) => ({
-        id,
-        commence_time: new Date(now + mins*60*1000).toISOString(),
-        home_team: home,
-        away_team: away,
-        outcomes: [
-          { name:"Home", prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name:"Away", prob: 25.5, odds: null },
-        ],
-        totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
-        ],
-        btts: { outcomes:[ {name:"Yes", prob:55.0, odds:null}, {name:"No", prob:45.0, odds:null} ] }
-      });
-      return [
-        mk("demo_1","Arsenal","Liverpool",90),
-        mk("demo_2","Inter","Juventus",140),
-        mk("demo_3","Real Madrid","Barcelona",210),
-        mk("demo_4","PSG","Marseille",260),
-        mk("demo_5","Bayern","Dortmund",320),
-        mk("demo_6","Milan","Napoli",380),
-        mk("demo_7","Atalanta","Roma",430),
-        mk("demo_8","Chelsea","Man City",500),
-      ];
-    }
+      // 🇫🇷 Francia
+      ligue1:      { league: 61,  season: 2025 },
 
-    /* ===== DOM ===== */
-    const el = (id) => document.getElementById(id);
-    const $ = {
-      rate: el("rateInfo"),
-      status: el("statusInfo"),
-      notice: el("notice"),
-      cards: el("cards"),
-      chipCount: el("chipCount"),
-      chipMode: el("chipMode"),
+      // 🇩🇪 Germania
+      bundesliga:  { league: 78,  season: 2025 },
 
-      sport: el("sport"),
-      sportCustom: el("sportCustom"),
-      regions: el("regions"),
-      refresh: el("refreshBtn"),
+      // 🇪🇺 Coppe Europee
+      ucl:         { league: 2,   season: 2025 },
+      uel:         { league: 3,   season: 2025 },
+      uecl:        { league: 848, season: 2025 },
 
-      overlay: el("modalOverlay"),
-      closeModal: el("closeModal"),
-      chatTitle: el("chatTitle"),
-      chatSub: el("chatSub"),
-      chatFeed: el("chatFeed"),
-      chatInput: el("chatInput"),
-      sendBtn: el("sendBtn"),
-      tabsBar: el("tabsBar"),
-      teamsRow: el("teamsRow"),
-      tabBtns: Array.from(document.querySelectorAll(".tabBtn")),
+      // 🌍 Mondiali
+      worldcup:    { league: 1,   season: 2022 },
+      euro:        { league: 4,   season: 2024 }
     };
 
-    /* ===== STATE ===== */
-    let lastData = [];
-    let currentEvent = null;
-    let currentMode = "OPEN";
-    let chatHistory = [];
-    let isDemoMode = false;
+    /***********************
+     * STATE
+     ***********************/
+    const S = {
+      presetKey: "serieA",
+      fixtures: [],
+      current: null,
+      currentMode: "analisi",
+      currentContext: null,
+      answersByMode: {},
+      typingEl: null,
+      inflightToken: 0
+    };
 
-    /* ===== HELPERS ===== */
-    function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function fmtDate(iso){
+    const $ = (id) => document.getElementById(id);
+
+    function showError(msg){
+      $("errorText").textContent = msg;
+      $("errorBox").classList.add("show");
+    }
+    function clearError(){
+      $("errorBox").classList.remove("show");
+      $("errorText").textContent = "";
+    }
+
+    function fmtDate(d){
       try{
-        const d = new Date(iso);
-        return d.toLocaleString(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-      }catch{ return iso; }
-    }
-    function isoDateOnly(iso){
-      try{
-        const d = new Date(iso);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth()+1).padStart(2,"0");
-        const dd = String(d.getDate()).padStart(2,"0");
-        return `${yyyy}-${mm}-${dd}`;
-      }catch{
-        return "";
-      }
+        const dt = new Date(d);
+        return dt.toLocaleString("it-IT", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" });
+      }catch(e){ return d || "—"; }
     }
 
-    function chosenSport(){
-      return ($.sport.value === "custom" && $.sportCustom.value.trim())
-        ? $.sportCustom.value.trim()
-        : $.sport.value;
-    }
-    function isSoccerSport(){
-      const s = chosenSport();
-      return /^soccer_/i.test(s);
-    }
-    function bestOutcome(outcomes=[]){
-      return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
-    }
-    function toItOutcome(name=""){
-      return /draw/i.test(name) ? "Pareggio" : /yes/i.test(name) ? "Gol" : /no/i.test(name) ? "No Gol" : name;
-    }
-    function showNotice(txt){
-      $.notice.textContent = txt;
-      $.notice.classList.remove("hidden");
-    }
-    function hideNotice(){ $.notice.classList.add("hidden"); }
+    function norm(s){ return String(s||"").trim().toLowerCase(); }
 
-    function emptyState(msg){
-      return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
-          ${esc(msg)}
-        </div>
+    function escapeHtml(str){
+      return String(str||"")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;")
+        .replace(/\n/g,"<br/>");
+    }
+
+    // ✅ L/D/W → S/P/V nelle sequenze tipo L-D-L-L-W
+    function translateFormSequences(text){
+      const map = { "L":"S", "D":"P", "W":"V" };
+      return String(text||"").replace(/\b([LDW](?:-[LDW]){1,})\b/g, (m)=>{
+        return m.split("-").map(ch => map[ch] || ch).join("-");
+      });
+    }
+
+    // ✅ H2H → Scontri diretti
+    function translateH2H(text){
+      return String(text||"").replace(/\bH2H\b/gi, "Scontri diretti");
+    }
+
+    function postProcessBotText(text){
+      let t = String(text||"");
+      t = translateH2H(t);
+      t = translateFormSequences(t);
+      return t;
+    }
+
+    function addMsg(who, text, isWarn=false){
+      const el = document.createElement("div");
+      el.className = "msg " + (who === "me" ? "me" : "") + (isWarn ? " warnBox" : "");
+      const label = who === "me" ? "Tu" : "Betty";
+      const finalText = (who === "me") ? text : postProcessBotText(text);
+      el.innerHTML = `<span class="small">${label}</span>${escapeHtml(finalText)}`;
+      $("chat").appendChild(el);
+      $("chat").scrollTop = $("chat").scrollHeight;
+      return el;
+    }
+
+    function showTyping(){
+      hideTyping();
+      const el = document.createElement("div");
+      el.className = "msg";
+      el.innerHTML = `
+        <span class="small">Betty</span>
+        <span class="typing">
+          <span>Betty sta scrivendo</span>
+          <span class="dots"><i></i><i></i><i></i></span>
+        </span>
       `;
+      $("chat").appendChild(el);
+      $("chat").scrollTop = $("chat").scrollHeight;
+      S.typingEl = el;
+    }
+    function hideTyping(){
+      if(S.typingEl && S.typingEl.parentNode){
+        S.typingEl.parentNode.removeChild(S.typingEl);
+      }
+      S.typingEl = null;
     }
 
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
-    }
-
-    function safeJson(obj){
-      const s = JSON.stringify(obj || {});
-      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
-    }
-
-    /* ===== API (ODDS) ===== */
-    async function fetchEvents(){
-      const sport = chosenSport();
-      const regions = $.regions.value;
-      const url = new URL(SERVICE_BASE + "/get-odds");
-      url.searchParams.set("sport", sport);
-      url.searchParams.set("regions", regions);
-      url.searchParams.set("live", "false");
-      url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals,btts");
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+    async function apiGet(path){
+      const url = API_BASE + path;
+      const r = await fetch(url, { method:"GET" });
+      if(!r.ok){
+        const txt = await r.text().catch(()=> "");
+        throw new Error(`${r.status} ${r.statusText} — ${url}\n${txt}`);
+      }
       return r.json();
     }
 
-    /* ===== API (FOOTBALL HUB CONTEXT) ===== */
-    async function fetchJson(url){
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      let data = null;
-      try{ data = await r.json(); }catch{}
-      if (!r.ok) throw new Error(data?.error || data?.message || ("HTTP "+r.status));
-      return data;
+    async function bettyChat(payload){
+      const tryUrls = [
+        BETTY_BASE.replace(/\/$/,"") + "/chat",
+        BETTY_BASE.replace(/\/$/,"") + "/"
+      ];
+      let lastErr = null;
+      for(const url of tryUrls){
+        try{
+          const r = await fetch(url, {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify(payload)
+          });
+          if(!r.ok){
+            const t = await r.text().catch(()=> "");
+            throw new Error(`${r.status} ${r.statusText} — ${url}\n${t}`);
+          }
+          return r.json();
+        }catch(e){
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error("Failed to fetch betty-chat");
     }
 
-    async function enrichSoccerContext(ev){
-      // Se non è calcio o siamo in demo → non facciamo nulla
-      if (!isSoccerSport() || isDemoMode) return { context: null, resolve: null };
-
-      const date = isoDateOnly(ev.commence_time);
-      if (!date) return { context: null, resolve: null };
-
-      // 1) resolve fixture id
-      const u1 = new URL(FOOTBALL_HUB_BASE + "/resolve");
-      u1.searchParams.set("home", ev.home_team);
-      u1.searchParams.set("away", ev.away_team);
-      u1.searchParams.set("date", date);
-
-      const resolved = await fetchJson(u1.toString());
-
-      // resolved.fixture?.fixture?.id oppure resolved.response?.fixture?.id → gestiamo entrambe
-      const fixtureId =
-        resolved?.fixture?.fixture?.id ||
-        resolved?.fixture?.id ||
-        resolved?.response?.fixture?.id ||
-        resolved?.response?.[0]?.fixture?.id ||
-        null;
-
-      if (!fixtureId) return { context: null, resolve: resolved };
-
-      // 2) context completo
-      const u2 = new URL(FOOTBALL_HUB_BASE + "/context");
-      u2.searchParams.set("fixture", String(fixtureId));
-
-      const ctx = await fetchJson(u2.toString());
-
-      return { context: ctx, resolve: resolved, fixtureId };
-    }
-
-    /* ===== LOAD + RENDER ===== */
-    async function load(){
-      $.status.textContent = "stato: carico…";
-      hideNotice();
+    async function loadFixtures(){
+      clearError();
+      const preset = PRESETS[S.presetKey];
 
       try{
-        const data = await fetchEvents();
-        const rate = data?.rate || {};
-        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
-
-        const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
-
-        if (mustDemo){
-          setDemoMode(true);
-          showNotice("⚠️ Limite chiamate raggiunto (remaining=0). Attivo la modalità DEMO per non fermare la pagina.");
-          lastData = buildDemoEvents();
-          $.status.textContent = "stato: demo";
-          $.chipCount.textContent = `match: ${lastData.length || 0}`;
-          renderCards(lastData);
-          return;
-        }
-
-        setDemoMode(false);
-
-        lastData = data.events || [];
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-
-        if (!lastData.length){
-          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
-          $.status.textContent = "stato: ok (0)";
-          return;
-        }
-
-        renderCards(lastData);
-        $.status.textContent = "stato: ok";
+        const next = 20; // 20 match
+        const data = await apiGet(`/fixtures?league=${preset.league}&season=${preset.season}&next=${next}`);
+        const list = data?.response || data?.fixtures || data?.data || (Array.isArray(data) ? data : []);
+        S.fixtures = Array.isArray(list) ? list : [];
+        $("chipCount").textContent = String(S.fixtures.length);
+        renderGrid();
       }catch(e){
-        console.error(e);
-        setDemoMode(true);
-        showNotice("⚠️ Problema di rete/backend. Attivo la modalità DEMO.");
-        lastData = buildDemoEvents();
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-        renderCards(lastData);
-        $.status.textContent = "stato: demo";
+        showError("Errore /fixtures: " + e.message);
       }
     }
 
-    function renderCards(events){
-      $.cards.innerHTML = events.map(renderCard).join("");
-    }
+    function renderGrid(){
+      const g = $("grid");
+      g.innerHTML = "";
 
-    function renderCard(ev){
-      const pick = bestOutcome(ev.outcomes || []);
-      const when = fmtDate(ev.commence_time);
+      for(const fx of S.fixtures){
+        const fixtureId = fx?.fixture?.id || fx?.fixture_id || fx?.id || "";
+        const homeName = fx?.teams?.home?.name || fx?.home?.name || fx?.home_team?.name || "Home";
+        const awayName = fx?.teams?.away?.name || fx?.away?.name || fx?.away_team?.name || "Away";
+        const date = fx?.fixture?.date || fx?.date || "";
+        const status = norm(fx?.fixture?.status?.short || fx?.status || "");
+        const isLive = ["1h","2h","ht","et","p","live","inplay"].includes(status);
 
-      return `
-        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
-                ${esc(ev.home_team)} <span class="text-slate-400">vs</span> ${esc(ev.away_team)}
-              </h3>
-              <div class="text-xs text-slate-500 mt-1">${esc(when)}</div>
+        const homeLogo = fx?.teams?.home?.logo || fx?.home?.logo || "";
+        const awayLogo = fx?.teams?.away?.logo || fx?.away?.logo || "";
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="badge ${isLive ? "live":"next"}">${isLive ? "live":"next"}</div>
+          <h3>${homeName} <span style="color:#8b97a8;font-weight:900;">vs</span> ${awayName}</h3>
+          <div class="meta">${fmtDate(date)}</div>
+
+          <div class="teams">
+            <div class="team">
+              ${homeLogo ? `<img class="logo" src="${homeLogo}" alt="" />` : ``}
+              <div class="tname">${homeName}</div>
             </div>
-            <span class="chip">${isDemoMode ? "demo" : "live"}</span>
+            <div class="vs">VS</div>
+            <div class="team right">
+              <div class="tname">${awayName}</div>
+              ${awayLogo ? `<img class="logo" src="${awayLogo}" alt="" />` : ``}
+            </div>
           </div>
 
-          <div class="mt-3 text-sm text-slate-700">
-            <span class="font-extrabold text-slate-900">Previsione (rapida):</span>
-            ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
-            <div class="text-xs text-slate-500 mt-1">(Niente quote qui: solo lettura e spiegazione.)</div>
+          <div class="cta">
+            <button data-fixture="${fixtureId}">Leggi il Pronostico di Betty 🤖</button>
           </div>
+        `;
 
-          <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary"
-                    onclick='openBetty(${safeJson(ev)})'>
-              Leggi il Pronostico di Betty🧙‍♀️
-            </button>
-          </div>
-        </article>
-      `;
+        card.querySelectorAll("img.logo").forEach(img=>{
+          img.onerror = ()=> img.style.display="none";
+        });
+
+        card.querySelector("button").addEventListener("click", async () => {
+          await openModalForFixture(fx);
+        });
+
+        g.appendChild(card);
+      }
     }
 
-    /* ===== MODAL ===== */
-    function openModal(){
-      $.overlay.classList.add("show");
-      $.overlay.setAttribute("aria-hidden","false");
-      document.body.style.overflow = "hidden";
-      setTimeout(()=> $.chatInput.focus(), 60);
-    }
-    function closeModal(){
-      $.overlay.classList.remove("show");
-      $.overlay.setAttribute("aria-hidden","true");
-      document.body.style.overflow = "";
-    }
+    /***********************
+     * AUTO-ANSWER per tab
+     ***********************/
+    const MODE_DEFAULT_USER_PROMPT = {
+      analisi: "Analizza il match e dammi l'esito più probabile.",
+      uo:      "Consiglia Under/Over più coerente (2.5/3.5 se ha senso).",
+      btts:    "Consiglia Gol/NoGol (BTTS) più coerente.",
+      cs:      "Proponi 1-2 risultati esatti plausibili.",
+      scorer:  "Proponi 1-3 marcatori plausibili."
+    };
 
-    function setMode(mode){
-      currentMode = mode;
-      $.tabBtns.forEach(b=>{
-        b.classList.toggle("active", b.dataset.mode === mode);
-      });
-    }
-
-    function addUserBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleUser">${esc(text)}</div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addBettyBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty">${esc(text)}</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    function systemRulesForMode(mode){
+      return [
+        "REGOLE IMPORTANTI:",
+        "- Usa SOLO i dati presenti nel JSON 'context' allegato.",
+        "- Se un dato non c'è, scrivi: 'Dato non disponibile nel contesto'.",
+        "- Non inventare statistiche, nomi o quote se non sono nel contesto.",
+        "- Rispondi in italiano, breve e concreto.",
+        "",
+        "OUTPUT richiesto:",
+        mode === "analisi" ? "1) contesto (classifica+forma) 2) indisponibili chiave 3) scenario + esito più probabile" :
+        mode === "uo" ? "1) linea consigliata (Under/Over) 2) breve motivazione" :
+        mode === "btts" ? "1) Gol o NoGol 2) breve motivazione" :
+        mode === "cs" ? "1) 1-2 risultati esatti 2) breve logica" :
+        mode === "scorer" ? "1) 1-3 marcatori 2) motivazione usando SOLO topscorers/indisponibili nel context" :
+        "Risposta breve"
+      ].join("\n");
     }
 
-    function addThinking(){
-      const id = "t_" + Math.random().toString(36).slice(2);
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div id="${id}" class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-      return id;
-    }
-    function removeThinking(id){
-      const n = document.getElementById(id);
-      if (n) n.remove();
-    }
+    async function runAutoAnswerForMode(mode){
+      if(!S.current) return;
 
-    function renderTeamsRowFromContext(ctx){
-      // prova a prendere loghi da context (API-Football)
-      // possibili path: ctx.context?.fixture?.teams?.home?.logo ecc
-      const homeLogo =
-        ctx?.context?.fixture?.teams?.home?.logo ||
-        ctx?.fixture?.teams?.home?.logo ||
-        null;
-
-      const awayLogo =
-        ctx?.context?.fixture?.teams?.away?.logo ||
-        ctx?.fixture?.teams?.away?.logo ||
-        null;
-
-      if (!homeLogo && !awayLogo) {
-        $.teamsRow.classList.add("hidden");
-        $.teamsRow.innerHTML = "";
+      if(S.answersByMode[mode]){
         return;
       }
 
-      const hName = currentEvent?.home_team || "Home";
-      const aName = currentEvent?.away_team || "Away";
-
-      $.teamsRow.innerHTML = `
-        <div class="teamPill">
-          ${homeLogo ? `<img class="teamLogo" src="${esc(homeLogo)}" alt="${esc(hName)}" />` : ""}
-          <span>${esc(hName)}</span>
-        </div>
-        <div class="teamPill">
-          ${awayLogo ? `<img class="teamLogo" src="${esc(awayLogo)}" alt="${esc(aName)}" />` : ""}
-          <span>${esc(aName)}</span>
-        </div>
-      `;
-      $.teamsRow.classList.remove("hidden");
-    }
-
-    function updateTabsVisibility(){
-      const soccer = isSoccerSport();
-      $.tabsBar.style.display = soccer ? "flex" : "none";
-      // se non calcio, blocchiamo i mode calcistici
-      if (!soccer) {
-        setMode("OPEN");
+      if(!S.currentContext){
+        const txt = "Non disponibile: il contesto del match non è arrivato (standings/forma/indisponibili/marcatori).";
+        addMsg("bot", txt, true);
+        S.answersByMode[mode] = txt;
+        return;
       }
-    }
 
-    /* ===== BETTY CALL ===== */
-    function modeSeedPrompt(mode){
-      // prompt “guidato” per farle usare i dati che le passiamo
-      if (mode === "TOTALS") return "Genera una lettura Under/Over (spiega ritmo, gol fatti/subiti, trend recente, h2h e indisponibili). Se non hai un dato nel contesto, dillo chiaramente.";
-      if (mode === "BTTS")   return "Genera una lettura Gol/NoGol (BTTS). Usa forma, gol fatti/subiti, h2h, stile di gioco e indisponibili. Se manca un dato nel contesto, dillo.";
-      if (mode === "EXACT")  return "Azzarda 1–2 risultati esatti plausibili basandoti su forma, gol fatti/subiti, h2h e indisponibili. Motivali. Se mancano dati, riduci confidenza.";
-      if (mode === "SCORER") return "Suggerisci 1–3 possibili marcatori usando top scorers, ruoli (se presenti), forma e indisponibili. Se non hai rose/ruoli nel contesto, spiegalo e proponi solo in base ai marcatori e trend.";
-      return "Analisi completa: classifica, forma (ultime), h2h, indisponibili, gol fatti/subiti. Chiudi con 1X2 più probabile e perché. Se mancano dati nel contesto, dillo.";
-    }
+      const token = ++S.inflightToken;
+      showTyping();
 
-    async function askBetty(userText){
-      if (!currentEvent){
-        addBettyBubble("Seleziona prima un match 😊");
-        return "";
-      }
+      const fixtureId = S.current?.fixture?.id || S.current?.fixture_id || S.current?.id || null;
+      const home = S.current?.teams?.home?.name || S.current?.home?.name || S.current?.home_team?.name;
+      const away = S.current?.teams?.away?.name || S.current?.away?.name || S.current?.away_team?.name;
+      const date = (S.current?.fixture?.date || S.current?.date || "").slice(0,10);
 
       const payload = {
-        mode: currentMode,
-        prompt: userText || "",
-        event: currentEvent,
-        context: currentEvent.__context || null, // ✅ qui passa tutto il contesto del football-hub
-        history: chatHistory.slice(-10),
-        demo: isDemoMode
+        prompt: MODE_DEFAULT_USER_PROMPT[mode] || "Dammi un pronostico coerente.",
+        mode,
+        system: systemRulesForMode(mode),
+        match: { fixture_id: fixtureId, home, away, date },
+        context: S.currentContext
       };
 
       try{
-        const r = await fetch(BETTY_CHAT_URL + "/chat", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
+        const res = await bettyChat(payload);
+        if(token !== S.inflightToken) return;
+
+        const out =
+          res?.answer ||
+          res?.text ||
+          res?.message ||
+          (typeof res === "string" ? res : JSON.stringify(res, null, 2));
+
+        hideTyping();
+        addMsg("bot", out);
+        S.answersByMode[mode] = out;
+
+      }catch(e){
+        if(token !== S.inflightToken) return;
+        hideTyping();
+        const txt = "Non disponibile: errore nel generare la risposta per questa modalità.";
+        addMsg("bot", txt, true);
+        S.answersByMode[mode] = txt;
+      }
+    }
+
+    function setActiveTab(mode){
+      S.currentMode = mode;
+      document.querySelectorAll(".tab").forEach(t => {
+        t.classList.toggle("active", t.dataset.mode === mode);
+      });
+      runAutoAnswerForMode(mode);
+    }
+
+    async function openModalForFixture(fx){
+      S.current = fx;
+      S.currentContext = null;
+      S.answersByMode = {};
+      S.inflightToken++;
+
+      const homeName = fx?.teams?.home?.name || fx?.home?.name || fx?.home_team?.name || "Home";
+      const awayName = fx?.teams?.away?.name || fx?.away?.name || fx?.away_team?.name || "Away";
+      const date = fx?.fixture?.date || fx?.date || "";
+      const fixtureId = fx?.fixture?.id || fx?.fixture_id || fx?.id || "";
+
+      $("mhMatch").textContent = `${homeName}  vs  ${awayName}`;
+      $("mhWhen").textContent = fmtDate(date);
+      $("chat").innerHTML = "";
+
+      $("overlay").classList.add("show");
+
+      showTyping();
+      try{
+        const ctx = await apiGet(`/context?fixture=${encodeURIComponent(fixtureId)}`);
+        S.currentContext = ctx;
+        hideTyping();
+
+        setActiveTab(S.currentMode);
+
+      }catch(e){
+        hideTyping();
+        addMsg("bot", "Non disponibile: non riesco a caricare il contesto del match.", true);
+        setActiveTab(S.currentMode);
+      }
+    }
+
+    async function sendUserQuestion(){
+      const text = $("q").value.trim();
+      if(!text) return;
+      $("q").value = "";
+      addMsg("me", text);
+
+      if(!S.currentContext){
+        addMsg("bot","Non disponibile: non ho il contesto del match.", true);
+        return;
+      }
+
+      const mode = S.currentMode;
+      const token = ++S.inflightToken;
+      showTyping();
+
+      const fixtureId = S.current?.fixture?.id || S.current?.fixture_id || S.current?.id || null;
+      const home = S.current?.teams?.home?.name || S.current?.home?.name || S.current?.home_team?.name;
+      const away = S.current?.teams?.away?.name || S.current?.away?.name || S.current?.away_team?.name;
+      const date = (S.current?.fixture?.date || S.current?.date || "").slice(0,10);
+
+      try{
+        const res = await bettyChat({
+          prompt: text,
+          mode,
+          system: systemRulesForMode(mode),
+          match: { fixture_id: fixtureId, home, away, date },
+          context: S.currentContext
         });
 
-        let data = null;
-        try{ data = await r.json(); }catch{}
+        if(token !== S.inflightToken) return;
+        hideTyping();
 
-        if (!r.ok) throw new Error(data?.error || data?.message || ("HTTP " + r.status));
+        const out =
+          res?.answer ||
+          res?.text ||
+          res?.message ||
+          (typeof res === "string" ? res : JSON.stringify(res, null, 2));
 
-        const text = String(data?.content || data?.output_text || data?.text || data?.message || "").trim();
-        if (!text) throw new Error("Risposta vuota");
-        return text;
+        addMsg("bot", out);
+
       }catch(e){
-        const pick = bestOutcome(currentEvent?.outcomes || []);
-        const base = pick ? `Lettura rapida: scenario più probabile **${toItOutcome(pick.name)}**.` : "Lettura rapida disponibile.";
-        const hint =
-          (currentMode === "TOTALS") ? "Under/Over: dimmi la linea (2.5 / 3.5) e azzardo lo scenario."
-        : (currentMode === "BTTS") ? "Gol/NoGol: ti dico quale sembra più coerente."
-        : (currentMode === "EXACT") ? "Risultato esatto: posso azzardare 1–2 score realistici (solo gioco)."
-        : (currentMode === "SCORER") ? "Marcatore: dimmi 1–2 nomi (o ruolo) e azzardo."
-        : "Chiedimi: forma, ritmo, fasi, cosa aspettarti nel match.";
-        return `${base}\n${hint}\n\n(Se betty-chat è giù: modalità demo, niente dati.)`;
+        if(token !== S.inflightToken) return;
+        hideTyping();
+        addMsg("bot","Non disponibile: errore nel generare la risposta.", true);
       }
     }
 
-    /* ===== PUBLIC ===== */
-    window.openBetty = async function(ev){
-      currentEvent = ev;
-      chatHistory = [];
-      updateTabsVisibility();
+    /***********************
+     * Events
+     ***********************/
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => setActiveTab(t.dataset.mode));
+    });
 
-      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
-      $.chatSub.textContent = fmtDate(ev.commence_time);
-      $.chatFeed.innerHTML = "";
-      $.teamsRow.classList.add("hidden");
-      $.teamsRow.innerHTML = "";
+    $("btnClose").addEventListener("click", () => $("overlay").classList.remove("show"));
+    $("overlay").addEventListener("click", (e) => { if(e.target === $("overlay")) $("overlay").classList.remove("show"); });
+    document.addEventListener("keydown", (e) => { if(e.key === "Escape") $("overlay").classList.remove("show"); });
 
-      setMode("OPEN");
-      openModal();
+    $("btnSend").addEventListener("click", sendUserQuestion);
+    $("q").addEventListener("keydown", (e)=>{ if(e.key === "Enter") sendUserQuestion(); });
 
-      // 1) carico contesto calcio (classifica/forma/h2h/injuries/topscorers)
-      let ctx = null;
-      if (isSoccerSport() && !isDemoMode) {
-        const th0 = addThinking();
-        try{
-          const enriched = await enrichSoccerContext(ev);
-          ctx = enriched?.context || null;
-          currentEvent.__context = ctx;
+    $("preset").addEventListener("change", (e) => {
+      S.presetKey = e.target.value;
+    });
 
-          // prova a renderizzare i loghi se ci sono
-          renderTeamsRowFromContext(ctx);
+    $("btnLoad").addEventListener("click", loadFixtures);
 
-          removeThinking(th0);
-          addBettyBubble("Ok, ho caricato classifica/forma/h2h/indisponibili. Procedo con l’analisi 👇");
-        }catch(err){
-          console.error(err);
-          removeThinking(th0);
-          addBettyBubble("Non riesco a caricare il contesto (classifica/forma) in questo momento. Posso comunque fare una lettura ‘leggera’.");
-          currentEvent.__context = null;
-        }
-      } else {
-        currentEvent.__context = null;
-      }
-
-      // 2) richiesta analisi
-      const th = addThinking();
-      const opening = await askBetty(modeSeedPrompt("OPEN"));
-      removeThinking(th);
-
-      addBettyBubble(opening);
-      chatHistory.push({ role:"assistant", content: opening });
+    async function boot(){
+      await loadFixtures();
     }
 
-    /* ===== EVENTS ===== */
-    $.refresh.addEventListener("click", load);
-
-    $.sport.addEventListener("change", () => {
-      const custom = $.sport.value === "custom";
-      $.sportCustom.classList.toggle("hidden", !custom);
-      if (custom) $.sportCustom.focus();
-      updateTabsVisibility();
-    });
-
-    $.tabBtns.forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
-        // Tabs solo per calcio: se non calcio, ignora
-        if (!isSoccerSport()) return;
-
-        setMode(btn.dataset.mode);
-
-        // auto-risposta "ragionata" sul tab
-        const th = addThinking();
-        const seed = modeSeedPrompt(btn.dataset.mode);
-        const ans = await askBetty(seed);
-        removeThinking(th);
-
-        addBettyBubble(ans);
-        chatHistory.push({ role:"assistant", content: ans });
-      });
-    });
-
-    $.sendBtn.addEventListener("click", async ()=>{
-      const t = $.chatInput.value.trim();
-      if (!t) return;
-      $.chatInput.value = "";
-
-      addUserBubble(t);
-      chatHistory.push({ role:"user", content: t });
-
-      const th = addThinking();
-      const ans = await askBetty(t);
-      removeThinking(th);
-
-      addBettyBubble(ans);
-      chatHistory.push({ role:"assistant", content: ans });
-    });
-
-    $.chatInput.addEventListener("keydown", (e)=>{
-      if (e.key === "Enter" && !e.shiftKey){
-        e.preventDefault();
-        $.sendBtn.click();
-      }
-    });
-
-    $.closeModal.addEventListener("click", closeModal);
-    $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
-    document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
-
-    /* ===== INIT ===== */
-    updateTabsVisibility();
-    load();
+    boot();
   </script>
 </body>
+</html>
+
 </html>
