@@ -59,6 +59,7 @@
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
+    /* Team logo circles */
     .tlogo{
       width:34px;height:34px;border-radius:999px;
       display:inline-flex;align-items:center;justify-content:center;
@@ -83,6 +84,40 @@
       color:#7c2d12;
     }
 
+    /* Odds table */
+    .oddsBox{
+      border:1px solid rgba(2,6,23,.08);
+      border-radius:16px;
+      background:#fff;
+      padding:10px 12px;
+    }
+    .oddsRow{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      padding:6px 0;
+      border-top:1px dashed rgba(2,6,23,.08);
+      font-size:13px;
+    }
+    .oddsRow:first-child{ border-top:0; }
+    .oddsLeft{ color:#0f172a; font-weight:800; }
+    .oddsRight{ display:flex; gap:8px; align-items:center; }
+    .oddPill{
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(2,6,23,.10);
+      background:#fff;
+      font-weight:900;
+      color:#0f172a;
+      white-space:nowrap;
+    }
+    .oddPill.soft{
+      background:#f8fafc;
+      color:#334155;
+      font-weight:800;
+    }
+
+    /* Modal */
     .modalOverlay{
       position:fixed; inset:0;
       background: rgba(2,6,23,.45);
@@ -248,6 +283,15 @@
               <option value="soccer_uefa_champs_league">UEFA — Champions League</option>
               <option value="soccer_uefa_europa_league">UEFA — Europa League</option>
               <option value="soccer_uefa_europa_conference_league">UEFA — Conference League</option>
+              <option value="soccer_uefa_nations_league">UEFA — Nations League</option>
+
+              <option value="soccer_uefa_euro">UEFA — Europei (EURO)</option>
+              <option value="soccer_uefa_euro_qualifiers">UEFA — Qualificazioni EURO</option>
+              <option value="soccer_fifa_world_cup">FIFA — Mondiali</option>
+              <option value="soccer_fifa_world_cup_qualifiers">FIFA — Qualificazioni Mondiali</option>
+
+              <option value="soccer_copa_america">CONMEBOL — Copa América</option>
+              <option value="soccer_africa_cup_of_nations">CAF — Coppa d’Africa</option>
 
               <option value="basketball_nba">Basket — NBA</option>
               <option value="tennis_atp">Tennis — ATP</option>
@@ -302,6 +346,7 @@
           <div class="flex flex-col gap-1">
             <div class="text-sm font-extrabold leading-tight">Betty</div>
 
+            <!-- Match header with logos -->
             <div class="flex items-center gap-2">
               <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
               <div id="mhHomeName" class="text-xs font-extrabold text-slate-800">—</div>
@@ -320,9 +365,6 @@
       <div class="microTabs">
         <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
-        <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
-        <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
-        <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
       </div>
 
       <div class="modalBody">
@@ -338,35 +380,16 @@
   </div>
 
   <script>
-    /* ===== CONFIG ===== */
-    const SERVICE_BASE     = "https://get-odds-299332443653.europe-west8.run.app";
-    const BETTY_CHAT_URL   = "https://betty-chat-299332443653.europe-west8.run.app";
-    const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const MAX_COUNT = 100;
+    /* ===== CONFIG =====
+       ✅ Tutto passa da GET-ODDS (proxy) per evitare CORS:
+       - odds list: /get-odds
+       - betty chat: /betty-chat
+       - football-hub: /football-hub/resolve + /football-hub/context
+    */
+    const GET_ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
+    const MAX_COUNT = 60;
 
-    function buildDemoEvents(){
-      const now = Date.now();
-      const mk = (id, home, away, mins) => ({
-        id,
-        commence_time: new Date(now + mins*60*1000).toISOString(),
-        home_team: home,
-        away_team: away,
-        outcomes: [
-          { name:"Home", prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name:"Away", prob: 25.5, odds: null },
-        ],
-        totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
-        ]
-      });
-      return [
-        mk("demo_1","Arsenal","Liverpool",90),
-        mk("demo_2","Inter","Juventus",140),
-        mk("demo_3","Real Madrid","Barcelona",210)
-      ];
-    }
-
+    /* ===== DOM ===== */
     const el = (id) => document.getElementById(id);
     const $ = {
       rate: el("rateInfo"),
@@ -376,10 +399,12 @@
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
       chipContext: el("chipContext"),
+
       sport: el("sport"),
       sportCustom: el("sportCustom"),
       regions: el("regions"),
       refresh: el("refreshBtn"),
+
       overlay: el("modalOverlay"),
       closeModal: el("closeModal"),
       chatTitle: el("chatTitle"),
@@ -387,27 +412,26 @@
       chatFeed: el("chatFeed"),
       chatInput: el("chatInput"),
       sendBtn: el("sendBtn"),
+
       tabBtns: Array.from(document.querySelectorAll(".tabBtn")),
       tabOPEN: el("tabOPEN"),
       tabTOTALS: el("tabTOTALS"),
-      tabBTTS: el("tabBTTS"),
-      tabEXACT: el("tabEXACT"),
-      tabSCORER: el("tabSCORER"),
+
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
     };
 
+    /* ===== STATE ===== */
     let lastData = [];
     let currentEvent = null;
     let currentMode = "OPEN";
     let chatHistory = [];
-    let isDemoMode = false;
-
     let currentContextBundle = null;
     const contextCache = new Map();
 
+    /* ===== HELPERS ===== */
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -437,7 +461,6 @@
       $.notice.classList.remove("hidden");
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
-
     function emptyState(msg){
       return `
         <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
@@ -445,7 +468,6 @@
         </div>
       `;
     }
-
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
@@ -472,38 +494,37 @@
       node.appendChild(img);
     }
 
+    function fmtOdd(o){
+      const n = Number(o);
+      if (!n || !isFinite(n)) return "—";
+      return n.toFixed(2);
+    }
+
+    /* ===== API (Odds list via proxy) ===== */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
-      const url = new URL(SERVICE_BASE + "/get-odds");
+      const url = new URL(GET_ODDS_BASE + "/get-odds");
       url.searchParams.set("sport", sport);
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-
-      // ✅ FIX: SOLO h2h,totals (niente btts -> niente 422)
-      url.searchParams.set("markets", "h2h,totals");
-
+      url.searchParams.set("markets", "h2h,totals"); // ✅ SOLO quelli supportati ora
       const r = await fetch(url, { headers:{ "Accept":"application/json" }});
       return r.json();
     }
 
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
-    }
-
+    /* ===== Football hub via proxy ===== */
     async function hubResolve(home, away, dateStr){
-      const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
+      const url = new URL(GET_ODDS_BASE + "/football-hub/resolve");
       url.searchParams.set("home", home);
       url.searchParams.set("away", away);
       url.searchParams.set("date", dateStr);
       const r = await fetch(url, { headers:{ "Accept":"application/json" }});
       return r.json();
     }
-
     async function hubContext(fixtureId){
-      const url = new URL(FOOTBALL_HUB_BASE + "/context");
+      const url = new URL(GET_ODDS_BASE + "/football-hub/context");
       url.searchParams.set("fixture", String(fixtureId));
       const r = await fetch(url, { headers:{ "Accept":"application/json" }});
       return r.json();
@@ -516,11 +537,6 @@
       const key = `${home}__${away}__${dateStr}`;
 
       if (contextCache.has(key)) return contextCache.get(key);
-      if (isDemoMode){
-        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_id:null };
-        contextCache.set(key, bundle);
-        return bundle;
-      }
 
       const res = await hubResolve(home, away, dateStr);
       if (!res?.ok || !res?.found || !res?.resolved?.fixture_id){
@@ -539,11 +555,11 @@
         context: ctx,
         fixture_id: fixtureId
       };
-
       contextCache.set(key, bundle);
       return bundle;
     }
 
+    /* ===== LOAD EVENTS ===== */
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
@@ -554,20 +570,13 @@
         const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
-        const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
-
-        if (mustDemo){
-          setDemoMode(true);
-          showNotice("⚠️ Limite chiamate raggiunto (remaining=0). Modalità DEMO attiva.");
-          lastData = buildDemoEvents();
-          $.status.textContent = "stato: demo";
-          $.chipCount.textContent = `match: ${lastData.length || 0}`;
-          renderCards(lastData);
+        if (!data?.ok){
+          showNotice("⚠️ Backend ok=false. Controlla il box e riprova.");
+          $.cards.innerHTML = emptyState("Nessun match perché il backend sta rispondendo con errore.");
+          $.status.textContent = "stato: errore backend";
+          $.chipCount.textContent = `match: 0`;
           return;
         }
-
-        setDemoMode(false);
 
         lastData = data.events || [];
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
@@ -582,22 +591,82 @@
         $.status.textContent = "stato: ok";
       }catch(e){
         console.error(e);
-        setDemoMode(true);
-        showNotice("⚠️ Problema di rete/backend. Modalità DEMO attiva.");
-        lastData = buildDemoEvents();
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-        renderCards(lastData);
-        $.status.textContent = "stato: demo";
+        showNotice("⚠️ Problema di rete. Riprova.");
+        $.cards.innerHTML = emptyState("Errore di rete.");
+        $.status.textContent = "stato: errore rete";
+        $.chipCount.textContent = `match: 0`;
       }
     }
 
+    /* ===== RENDER CARDS ===== */
     function renderCards(events){
       $.cards.innerHTML = events.map(renderCard).join("");
+    }
+
+    function renderH2HOdds(ev){
+      const outs = Array.isArray(ev.outcomes) ? ev.outcomes : [];
+      if (!outs.length) return `<div class="text-xs text-slate-500">Quote 1X2 non disponibili.</div>`;
+
+      // normalizza nomi
+      const homeName = ev.home_team;
+      const awayName = ev.away_team;
+      const map = new Map();
+      for (const o of outs) map.set(String(o.name), o);
+
+      const home = map.get(homeName) || map.get("Home") || null;
+      const draw = map.get("Draw") || map.get("Pareggio") || null;
+      const away = map.get(awayName) || map.get("Away") || null;
+
+      const rows = [];
+      if (home) rows.push({ label: homeName, odd: home.odds });
+      if (draw) rows.push({ label: "Pareggio", odd: draw.odds });
+      if (away) rows.push({ label: awayName, odd: away.odds });
+
+      return `
+        <div class="oddsBox">
+          <div class="text-xs font-extrabold text-slate-800 mb-1">Quote 1X2 (migliori)</div>
+          ${rows.map(r=>`
+            <div class="oddsRow">
+              <div class="oddsLeft">${esc(r.label)}</div>
+              <div class="oddsRight">
+                <span class="oddPill">${fmtOdd(r.odd)}</span>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderTotalsOdds(ev){
+      const tots = Array.isArray(ev.totals) ? ev.totals : [];
+      if (!tots.length) return `<div class="text-xs text-slate-500">Quote Under/Over non disponibili.</div>`;
+
+      // mostra prima riga (la più comune): 2.5 se esiste altrimenti la prima
+      let pick = tots.find(t=>Number(t.point)===2.5) || tots[0];
+      const outs = Array.isArray(pick.outcomes) ? pick.outcomes : [];
+      const over = outs.find(x=>String(x.name).toLowerCase()==="over");
+      const under = outs.find(x=>String(x.name).toLowerCase()==="under");
+
+      return `
+        <div class="oddsBox">
+          <div class="text-xs font-extrabold text-slate-800 mb-1">Under/Over (linea ${Number(pick.point).toFixed(2).replace(/\.00$/,'')})</div>
+          <div class="oddsRow">
+            <div class="oddsLeft">Over</div>
+            <div class="oddsRight"><span class="oddPill">${fmtOdd(over?.odds)}</span></div>
+          </div>
+          <div class="oddsRow">
+            <div class="oddsLeft">Under</div>
+            <div class="oddsRight"><span class="oddPill">${fmtOdd(under?.odds)}</span></div>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-2">Quote “best” per bookmaker (proxy).</div>
+        </div>
+      `;
     }
 
     function renderCard(ev){
       const pick = bestOutcome(ev.outcomes || []);
       const when = fmtDate(ev.commence_time);
+
       const h = esc(ev.home_team||"");
       const a = esc(ev.away_team||"");
       const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
@@ -612,7 +681,7 @@
               </h3>
               <div class="text-xs text-slate-500 mt-1">${esc(when)}</div>
             </div>
-            <span class="chip">${isDemoMode ? "demo" : "live"}</span>
+            <span class="chip">live</span>
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
@@ -623,14 +692,20 @@
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
+          <div class="mt-3 grid gap-3 md:grid-cols-2">
+            ${renderH2HOdds(ev)}
+            ${renderTotalsOdds(ev)}
+          </div>
+
           <div class="mt-3 text-sm text-slate-700">
             <span class="font-extrabold text-slate-900">Previsione (rapida):</span>
             ${pick ? `${esc(pick.name)}` : "—"}
-            <div class="text-xs text-slate-500 mt-1">(Niente quote qui: solo lettura e spiegazione.)</div>
+            <div class="text-xs text-slate-500 mt-1">(La spiegazione completa è in chat.)</div>
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
+            <button class="btn btnPrimary"
+                    onclick='openBetty(${safeJson(ev)})'>
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
@@ -638,6 +713,7 @@
       `;
     }
 
+    /* ===== MODAL ===== */
     function openModal(){
       $.overlay.classList.add("show");
       $.overlay.setAttribute("aria-hidden","false");
@@ -649,7 +725,6 @@
       $.overlay.setAttribute("aria-hidden","true");
       document.body.style.overflow = "";
     }
-
     function setMode(mode){
       currentMode = mode;
       $.tabBtns.forEach(b=>{
@@ -657,7 +732,6 @@
         b.classList.toggle("active", b.dataset.mode === mode);
       });
     }
-
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -666,7 +740,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -679,7 +752,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addWarn(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -690,7 +762,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addThinking(){
       const id = "t_" + Math.random().toString(36).slice(2);
       $.chatFeed.insertAdjacentHTML("beforeend", `
@@ -710,12 +781,26 @@
       if (n) n.remove();
     }
 
-    function buildPrompt(userText){
+    /* ===== BETTY CALL via proxy ===== */
+    function buildAntiHallucinationPrompt(userText, mode, bundle){
+      const hasCtx = !!(bundle && bundle.ok && bundle.context);
+      const ctxNote = hasCtx
+        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
+        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
+
+      const modeRule =
+        mode === "TOTALS"
+          ? "Se modalità UNDER/OVER: usa la linea presente in event.totals e ragiona."
+          : "Analisi: sintetica ma motivata. Se un dato non c’è nel contesto, non inventarlo.";
+
       return [
         "REGOLA ASSOLUTA:",
         "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
         "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
+        "",
+        ctxNote,
+        modeRule,
         "",
         "UTENTE:",
         userText || ""
@@ -730,33 +815,38 @@
 
       const payload = {
         mode: currentMode,
-        prompt: buildPrompt(userText || ""),
+        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
         event: currentEvent,
         context: (currentContextBundle && currentContextBundle.ok) ? currentContextBundle.context : null,
         resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
-        history: chatHistory.slice(-10),
-        demo: isDemoMode,
-        sport: chosenSport()
+        history: chatHistory.slice(-10)
       };
 
-      const r = await fetch(BETTY_CHAT_URL + "/chat", {
+      const r = await fetch(GET_ODDS_BASE + "/betty-chat", {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body: JSON.stringify(payload)
       });
 
       const data = await r.json().catch(()=>null);
-      if (!r.ok) throw new Error(data?.error || data?.message || ("HTTP " + r.status));
+      if (!r.ok || !data) throw new Error("Errore proxy betty");
+
+      if (data.ok === false) {
+        throw new Error("Betty upstream error");
+      }
 
       const text = String(data?.content || data?.output_text || data?.text || data?.message || "").trim();
       if (!text) throw new Error("Risposta vuota");
       return text;
     }
 
+    /* ===== PUBLIC ===== */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
       currentContextBundle = null;
+
+      const sportKey = chosenSport();
 
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
       $.chatSub.textContent = fmtDate(ev.commence_time);
@@ -780,6 +870,12 @@
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
           addBettyBubble("Perfetto ✅ Contesto agganciato.");
+
+          // loghi se presenti nel resolve
+          const hLogo = bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo;
+          const aLogo = bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo;
+          setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
+          setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
         }else{
           $.chipContext.textContent = "context: NO";
           addWarn("Non sono riuscita ad agganciare il contesto (resolve/context). Farò una lettura BASE senza inventare dati.");
@@ -790,18 +886,20 @@
         addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
 
-      const th = addThinking();
+      // apertura analisi
       try{
+        const th = addThinking();
         const opening = await askBetty("OPENING_ANALYSIS");
         removeThinking(th);
+
         addBettyBubble(opening);
         chatHistory.push({ role:"assistant", content: opening });
       }catch(e){
-        removeThinking(th);
-        addWarn("Errore chiamata Betty Chat. Controlla che BETTY_CHAT_URL sia online e CORS ok.");
+        addWarn("Errore chiamata Betty (proxy). Controlla che BETTY_CHAT_URL sia impostato nel servizio get-odds.");
       }
     }
 
+    /* ===== EVENTS ===== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -814,7 +912,11 @@
       btn.addEventListener("click", ()=>{
         if (btn.classList.contains("hidden")) return;
         setMode(btn.dataset.mode);
-        addBettyBubble("Ok. Fammi la domanda in questa modalità 🙂");
+        addBettyBubble(
+          btn.dataset.mode === "TOTALS"
+            ? "Modalità Under/Over attiva. Ti rispondo usando quote e contesto."
+            : "Modalità Analisi attiva. Fammi una domanda libera."
+        );
       });
     });
 
@@ -830,11 +932,12 @@
       try{
         const ans = await askBetty(t);
         removeThinking(th);
+
         addBettyBubble(ans);
         chatHistory.push({ role:"assistant", content: ans });
       }catch(e){
         removeThinking(th);
-        addWarn("Errore Betty Chat. Controlla servizio betty-chat / endpoint /chat.");
+        addWarn("Errore chiamata Betty (proxy). Passo successivo: settiamo le ENV su get-odds.");
       }
     });
 
@@ -849,6 +952,7 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
+    /* ===== INIT ===== */
     load();
   </script>
 </body>
