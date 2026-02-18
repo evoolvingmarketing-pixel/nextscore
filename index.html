@@ -68,11 +68,7 @@
       flex:0 0 auto;
     }
     .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
-    .tlogo.fallback{
-      font-weight:900;
-      color:#0f172a;
-      background:#f8fafc;
-    }
+    .tlogo.fallback{ font-weight:900; color:#0f172a; background:#f8fafc; }
     .vsPill{
       padding:4px 10px;
       border-radius:999px;
@@ -133,11 +129,7 @@
       flex-direction:column;
       gap:10px;
     }
-    .bubbleRow{
-      display:flex;
-      gap:10px;
-      align-items:flex-end;
-    }
+    .bubbleRow{ display:flex; gap:10px; align-items:flex-end; }
     .bubble{
       max-width: 820px;
       border-radius:18px;
@@ -154,13 +146,7 @@
       color:#fff;
       border:1px solid rgba(2,6,23,.18);
     }
-    .bubbleBetty{ background:#fff; }
-    .miniName{
-      font-size:12px;
-      color:#0f172a;
-      font-weight:900;
-      margin-bottom:2px;
-    }
+    .miniName{ font-size:12px; color:#0f172a; font-weight:900; margin-bottom:2px; }
     .microTabs{
       display:flex;
       gap:8px;
@@ -221,7 +207,7 @@
         </h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
           Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-          <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
+          <span class="text-slate-500">(con contesto quando disponibile)</span>.
         </p>
       </div>
 
@@ -337,8 +323,12 @@
 
   <script>
     /* ===== CONFIG ===== */
-    const SERVICE_BASE       = "https://get-odds-299332443653.europe-west8.run.app";
-    const FOOTBALL_HUB_BASE  = "https://football-hub-299332443653.europe-west8.run.app";
+    const SERVICE_BASE = "https://get-odds-299332443653.europe-west8.run.app";
+    // ✅ IMPORTANTISSIMO: chiamiamo sempre il proxy su get-odds (evita CORS e soprattutto evita il betty-chat rotto)
+    const BETTY_PROXY_ENDPOINT = SERVICE_BASE + "/betty-chat";
+
+    // hub (se non aggancia, va lo stesso)
+    const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
     const MAX_COUNT = 100;
 
     /* ===== DEMO DATA (fallback) ===== */
@@ -350,12 +340,12 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name: home, prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name: away, prob: 25.5, odds: null },
+          { name: home, prob: 48.5, odds: 2.05 },
+          { name:"Draw", prob: 26.0, odds: 3.40 },
+          { name: away, prob: 25.5, odds: 3.80 },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
+          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:1.92}, {name:"Under", prob:48.0, odds:1.96} ] }
         ],
       });
       return [
@@ -435,16 +425,20 @@
         ? $.sportCustom.value.trim()
         : $.sport.value;
     }
-    function isSoccerSportKey(sk){
-      return /^soccer_/i.test(String(sk||""));
-    }
+    function isSoccerSportKey(sk){ return /^soccer_/i.test(String(sk||"")); }
+
     function bestOutcome(outcomes=[]){
-      return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
+      return [...outcomes].sort((a,b)=>(Number(b.prob)||0)-(Number(a.prob)||0))[0];
     }
+
     function toItOutcome(name=""){
-      if (/draw|tie/i.test(name)) return "Pareggio";
-      return name;
+      const n = String(name||"");
+      if (/draw|tie|x/i.test(n)) return "Pareggio";
+      if (/home/i.test(n)) return "Casa";
+      if (/away/i.test(n)) return "Trasferta";
+      return n;
     }
+
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
@@ -485,13 +479,9 @@
       node.appendChild(img);
     }
 
-    /* ===== ODDS HELPERS (FIX 1X2) ===== */
-    function findOutcomeByName(outcomes, name){
-      const n = String(name||"").trim().toLowerCase();
-      return (outcomes||[]).find(o => String(o?.name||"").trim().toLowerCase() === n) || null;
-    }
-    function findDrawOutcome(outcomes){
-      return (outcomes||[]).find(o => /^(draw|tie|x)$/i.test(String(o?.name||"").trim())) || null;
+    function setDemoMode(on){
+      isDemoMode = !!on;
+      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
     /* ===== API (Odds list) ===== */
@@ -506,11 +496,6 @@
       url.searchParams.set("markets", "h2h,totals");
       const r = await fetch(url, { headers:{ "Accept":"application/json" }});
       return r.json();
-    }
-
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
     /* ===== API (Football HUB context) ===== */
@@ -544,26 +529,32 @@
         return bundle;
       }
 
-      const res = await hubResolve(home, away, dateStr);
-      if (!res?.ok || !res?.found || !res?.resolved?.fixture_id){
-        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_id:null };
+      try{
+        const res = await hubResolve(home, away, dateStr);
+        if (!res?.ok || !res?.found || !res?.resolved?.fixture_id){
+          const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_id:null };
+          contextCache.set(key, bundle);
+          return bundle;
+        }
+
+        const fixtureId = res.resolved.fixture_id;
+        const ctx = await hubContext(fixtureId);
+
+        const bundle = {
+          ok: !!ctx?.ok,
+          reason: ctx?.ok ? "ok" : "context_failed",
+          resolve: res,
+          context: ctx,
+          fixture_id: fixtureId
+        };
+
+        contextCache.set(key, bundle);
+        return bundle;
+      }catch(e){
+        const bundle = { ok:false, reason:"hub_error", resolve:null, context:null, fixture_id:null, err:String(e?.message||e) };
         contextCache.set(key, bundle);
         return bundle;
       }
-
-      const fixtureId = res.resolved.fixture_id;
-      const ctx = await hubContext(fixtureId);
-
-      const bundle = {
-        ok: !!ctx?.ok,
-        reason: ctx?.ok ? "ok" : "context_failed",
-        resolve: res,
-        context: ctx,
-        fixture_id: fixtureId
-      };
-
-      contextCache.set(key, bundle);
-      return bundle;
     }
 
     /* ===== LOAD EVENTS ===== */
@@ -619,6 +610,33 @@
       $.cards.innerHTML = events.map(renderCard).join("");
     }
 
+    // ✅ FIX 1X2: mappo per nome squadra (home/away) + Draw
+    function get1x2Odds(ev){
+      const o = Array.isArray(ev?.outcomes) ? ev.outcomes : [];
+      const homeName = String(ev?.home_team || "");
+      const awayName = String(ev?.away_team || "");
+
+      const home = o.find(x => String(x?.name||"").trim().toLowerCase() === homeName.trim().toLowerCase())?.odds ?? null;
+      const away = o.find(x => String(x?.name||"").trim().toLowerCase() === awayName.trim().toLowerCase())?.odds ?? null;
+      const draw = o.find(x => /draw|tie|x/i.test(String(x?.name||"")))?.odds ?? null;
+
+      // fallback: se arrivano "Home/Away/Draw"
+      const home2 = home ?? o.find(x=>/home/i.test(String(x?.name||"")))?.odds ?? null;
+      const away2 = away ?? o.find(x=>/away/i.test(String(x?.name||"")))?.odds ?? null;
+      const draw2 = draw ?? o.find(x=>/draw/i.test(String(x?.name||"")))?.odds ?? null;
+
+      return { home: home2, draw: draw2, away: away2 };
+    }
+
+    function getMainTotals(ev){
+      const totals = Array.isArray(ev?.totals) ? ev.totals : [];
+      const t0 = totals[0] || null;
+      const line = t0?.point ?? null;
+      const over = t0?.outcomes?.find(x=>/over/i.test(String(x?.name||""))) ?? null;
+      const under = t0?.outcomes?.find(x=>/under/i.test(String(x?.name||""))) ?? null;
+      return { line, over, under };
+    }
+
     function renderCard(ev){
       const pick = bestOutcome(ev.outcomes || []);
       const when = fmtDate(ev.commence_time);
@@ -628,26 +646,10 @@
       const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
       const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
 
-      const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
-      const totals = Array.isArray(ev.totals) ? ev.totals : [];
+      const oneXtwo = get1x2Odds(ev);
+      const totals = getMainTotals(ev);
 
-      // ✅ FIX: match per nome squadra / Draw
-      const oHome = findOutcomeByName(h2h, ev.home_team);
-      const oAway = findOutcomeByName(h2h, ev.away_team);
-      const oDraw = findDrawOutcome(h2h);
-
-      const qHome = oHome?.odds ?? null;
-      const qDraw = oDraw?.odds ?? null;
-      const qAway = oAway?.odds ?? null;
-
-      const t0 = totals[0];
-      const line = t0?.point ?? null;
-      const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
-      const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
-
-      const pill = (v)=> (v && Number(v) > 1 && Number(v) < 1000)
-        ? `<span class="chip" style="font-weight:900;">${esc(Number(v).toFixed(2).replace(/\.00$/,""))}</span>`
-        : `<span class="chip" style="opacity:.6;">—</span>`;
+      const pill = (v)=> (v ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
 
       return `
         <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
@@ -672,15 +674,15 @@
           <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
               <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
-              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
+              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(oneXtwo.home)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(oneXtwo.draw)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(oneXtwo.away)}</div>
             </div>
 
             <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
-              <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${totals.line ? `(linea ${esc(totals.line)})` : ""}</div>
+              <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(totals.over?.odds ?? null)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(totals.under?.odds ?? null)}</div>
               <div class="text-[12px] text-slate-500 mt-2">Quote “best” per bookmaker (proxy).</div>
             </div>
           </div>
@@ -692,8 +694,7 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary"
-                    onclick='openBetty(${safeJson(ev)})'>
+            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
@@ -737,7 +738,7 @@
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
             <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty">${esc(text)}</div>
+            <div class="bubble">${esc(text)}</div>
           </div>
         </div>
       `);
@@ -747,7 +748,7 @@
     function addWarn(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
-          <div class="bubble bubbleBetty" style="border-color:rgba(245,158,11,.35);background:#fff7ed;">
+          <div class="bubble" style="border-color:rgba(245,158,11,.35);background:#fff7ed;">
             ⚠️ ${esc(text)}
           </div>
         </div>
@@ -762,7 +763,7 @@
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
             <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Un secondo…</div>
+            <div class="bubble" style="opacity:.75;font-style:italic;">Sto guardando i dati…</div>
           </div>
         </div>
       `);
@@ -787,29 +788,31 @@
       }
     }
 
-    /* ===== BETTY CALL ===== */
-    function buildAntiHallucinationPrompt(userText, mode, bundle){
+    /* ===== PROMPT (anti-hallucination) ===== */
+    function buildPrompt(userText, mode, bundle, ev){
       const hasCtx = !!(bundle && bundle.ok && bundle.context);
+
+      const totals = getMainTotals(ev);
+      const line = totals?.line;
+
       const ctxNote = hasCtx
-        ? "Hai un contesto dati. Usa SOLO quello."
-        : "Non hai contesto dati: NON inventare classifica, forma, indisponibili, marcatori, h2h.";
+        ? "Hai un contesto affidabile in `context`. Usalo quando serve."
+        : "Non hai contesto affidabile: NON inventare classifica/forma/indisponibili/marcatori/h2h. Se non c’è, dillo.";
 
       const modeRule =
         mode === "SCORER"
-          ? "Marcatore: proponi 1–3 nomi SOLO se presenti nel contesto e NON indisponibili/squalificati. Se non hai dati, dillo."
+          ? "MARCATORE: proponi 1–3 nomi SOLO se nel contesto c'è elenco marcatori e disponibilità (no squalificati/infortunati). Se non hai disponibilità affidabile, NON suggerire nomi."
         : mode === "EXACT"
-          ? "Risultato esatto: proponi 1–2 score e una motivazione breve. Se mancano dati, sii prudente."
+          ? "RISULTATO ESATTO: proponi 1–2 score coerenti con quote e (se presente) trend gol. Se mancano dati, resta prudente."
         : mode === "BTTS"
-          ? "Gol/NoGol: dai un pick (Sì/No) con motivazione breve. Se mancano trend, dichiaralo."
+          ? "GOL/NOGOL: se hai trend/medie gol dal contesto, usale; altrimenti basa la lettura sulle quote disponibili e dichiaralo."
         : mode === "TOTALS"
-          ? "Under/Over: dai un pick e, se possibile, usa la linea presente nelle quote. Se la linea non c'è, proponi 2.5 come default e spiega."
-        : "Analisi: 4–8 righe, conversazionale, niente linguaggio tecnico.";
+          ? (line ? `UNDER/OVER: usa la linea ${line}. Dai una previsione chiara (Over o Under) con motivazione breve.` : "UNDER/OVER: se manca la linea, fai una lettura prudente basata sulle quote disponibili.")
+        : "ANALISI: breve, concreta, conversazionale. Se un dato non c’è, non inventarlo.";
 
       return [
-        "REGOLE:",
-        "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
-        "- Usa SOLO ciò che trovi in `context` quando presente.",
-        "- Se manca un dato: scrivi che non è disponibile.",
+        "STILE: umano, conversazionale, zero frasi tecniche.",
+        "REGOLA: se un dato non è presente, scrivi che non è disponibile e NON inventare.",
         "",
         ctxNote,
         modeRule,
@@ -827,6 +830,47 @@
       try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
     }
 
+    /* ===== LOCAL FALLBACK (per consegna) ===== */
+    function localFallback(mode, ev){
+      const oneXtwo = get1x2Odds(ev);
+      const totals = getMainTotals(ev);
+
+      const o = Array.isArray(ev?.outcomes) ? ev.outcomes : [];
+      const pick = bestOutcome(o);
+
+      if (mode === "TOTALS"){
+        const line = totals?.line;
+        const overProb = Number(totals?.over?.prob ?? 0);
+        const underProb = Number(totals?.under?.prob ?? 0);
+        const choice = overProb === underProb ? "leggero Over" : (overProb > underProb ? "Over" : "Under");
+        if (!line) return "Non ho una linea Under/Over disponibile in questo match. Se vuoi, dimmi la linea e faccio una lettura prudente.";
+        return `Previsione Under/Over (linea ${line}): **${choice}**.\nMotivo: lettura basata sulle quote disponibili (senza dati extra su forma/assenze).`;
+      }
+
+      if (mode === "BTTS"){
+        return "Gol/NoGol: in questo momento non ho un mercato BTTS affidabile nel feed quote. Posso fare una lettura prudente solo se arriva il BTTS dal backend.";
+      }
+
+      if (mode === "EXACT"){
+        return "Risultato esatto: senza trend gol/h2h affidabili preferisco non sparare score casuali. Se ripristiniamo il contesto, lo sblocco.";
+      }
+
+      if (mode === "SCORER"){
+        return "Marcatore: senza lista marcatori + disponibilità (infortunati/squalificati) non propongo nomi, per evitare errori.";
+      }
+
+      // OPEN
+      const homeName = ev?.home_team || "Casa";
+      const awayName = ev?.away_team || "Trasferta";
+      const h = oneXtwo.home ? `Casa (${homeName}) @ ${oneXtwo.home}` : `Casa (${homeName})`;
+      const d = oneXtwo.draw ? `Pareggio @ ${oneXtwo.draw}` : "Pareggio";
+      const a = oneXtwo.away ? `Trasferta (${awayName}) @ ${oneXtwo.away}` : `Trasferta (${awayName})`;
+
+      const quick = pick ? `Scelta rapida: **${toItOutcome(pick.name)}**.` : "Scelta rapida: non disponibile.";
+      return `Analisi prudente (basata sulle quote):\n- ${h}\n- ${d}\n- ${a}\n\n${quick}\nNota: contesto extra non disponibile in questo momento.`;
+    }
+
+    /* ===== BETTY CALL via PROXY ===== */
     async function askBetty(userText){
       if (!currentEvent){
         addBettyBubble("Seleziona prima un match 😊");
@@ -834,10 +878,9 @@
       }
 
       const sportKey = chosenSport();
-
       const payload = {
         mode: currentMode,
-        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
+        prompt: buildPrompt(userText || "", currentMode, currentContextBundle, currentEvent),
         event: currentEvent,
         context: (currentContextBundle && currentContextBundle.ok) ? currentContextBundle.context : null,
         resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
@@ -847,8 +890,7 @@
       };
 
       try{
-        // ✅ FIX: passa SEMPRE dal proxy get-odds
-        const r = await fetch(SERVICE_BASE + "/betty-chat", {
+        const r = await fetch(BETTY_PROXY_ENDPOINT, {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify(payload)
@@ -861,18 +903,15 @@
           data = t || null;
         }
 
-        // ✅ importante: il proxy può tornare 200 con ok:false
-        if (data && typeof data === "object" && data.ok === false){
-          const det = (data.details && typeof data.details === "object")
-            ? (data.details.error || data.details.message || JSON.stringify(data.details))
-            : (data.details || data.error || "Errore sconosciuto");
-          return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(det).slice(0, 800)}`;
+        if (!r.ok || (data && data.ok === false && data.error)){
+          // fallback locale per consegna
+          return `${localFallback(currentMode, currentEvent)}\n\n(Nota tecnica: al momento Betty non è raggiungibile, sto mostrando una preview basata sulle quote.)`;
         }
 
-        if (!r.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + r.status));
-
         const text = extractBettyText(data);
-        if (!text) throw new Error("Risposta vuota (nessun campo content/message/answer).");
+        if (!text){
+          return `${localFallback(currentMode, currentEvent)}\n\n(Nota tecnica: risposta vuota dal backend.)`;
+        }
 
         if (data && data.missing && Array.isArray(data.missing) && data.missing.length){
           return `${text}\n\n(Dati mancanti: ${data.missing.join(", ")})`;
@@ -882,31 +921,8 @@
 
       }catch(e){
         console.error("Betty error:", e);
-        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
+        return `${localFallback(currentMode, currentEvent)}\n\n(Nota tecnica: errore rete/backend.)`;
       }
-    }
-
-    async function runTabPrediction(mode){
-      if (!currentEvent){
-        addBettyBubble("Seleziona prima un match 😊");
-        return;
-      }
-      setMode(mode);
-
-      const th = addThinking();
-      const q =
-        mode === "OPEN"   ? "Fammi un'analisi pre-match e un pick principale (1X2) con motivazione breve."
-      : mode === "TOTALS" ? "Dammi una previsione Under/Over (usa la linea disponibile nelle quote, se c'è)."
-      : mode === "BTTS"   ? "Dammi una previsione Gol/NoGol con motivazione breve."
-      : mode === "EXACT"  ? "Dammi 1–2 risultati esatti probabili con motivazione breve."
-      : mode === "SCORER" ? "Dammi 1–3 marcatori probabili SOLO se presenti nel contesto e non indisponibili/squalificati."
-      : "Fammi una previsione.";
-
-      const ans = await askBetty(q);
-      removeThinking(th);
-
-      addBettyBubble(ans);
-      chatHistory.push({ role:"assistant", content: ans });
     }
 
     /* ===== PUBLIC ===== */
@@ -930,33 +946,57 @@
       setMode("OPEN");
       openModal();
 
-      // ✅ tono conversazionale
-      addBettyBubble("Ciao! Ti preparo l’analisi di questo match 👇");
+      addBettyBubble(`Ciao! Vediamo ${ev.home_team} vs ${ev.away_team} 🙂`);
+      addBettyBubble("Sto recuperando anche qualche info extra sul match, se disponibile…");
       $.chipContext.textContent = "context: carico…";
 
-      try{
-        const bundle = await getContextBundleForEvent(ev);
-        currentContextBundle = bundle;
+      const bundle = await getContextBundleForEvent(ev);
+      currentContextBundle = bundle;
 
-        if (bundle && bundle.ok && bundle.context){
-          $.chipContext.textContent = "context: ok";
+      if (bundle && bundle.ok && bundle.context){
+        $.chipContext.textContent = "context: ok";
+        addBettyBubble("Perfetto: ho trovato contesto affidabile. Lo uso nell’analisi.");
 
-          const hLogo = bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo;
-          const aLogo = bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo;
-          setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
-          setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
-        }else{
-          $.chipContext.textContent = "context: NO";
-          addWarn("Non ho trovato dati extra (forma/classifica/infortuni). Ti faccio una lettura prudente basata sulle quote.");
-        }
-      }catch(err){
-        console.error(err);
-        $.chipContext.textContent = "context: NO";
-        addWarn("Ho avuto un problema nel recuperare il contesto. Ti faccio una lettura prudente basata sulle quote.");
+        const hLogo = bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo;
+        const aLogo = bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo;
+        setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
+        setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
+      }else{
+        $.chipContext.textContent = "context: no";
+        addWarn("Non ho trovato info extra affidabili (forma/assenze ecc.). Ti faccio una lettura prudente basata sulle quote.");
       }
 
-      // ✅ Analisi immediata
-      await runTabPrediction("OPEN");
+      const th = addThinking();
+      const opening = await askBetty("Fammi una sintesi pre-match chiara e breve, con una scelta principale e una prudente.");
+      removeThinking(th);
+
+      addBettyBubble(opening);
+      chatHistory.push({ role:"assistant", content: opening });
+    }
+
+    /* ===== TAB: risposta immediata ===== */
+    async function autoAskForMode(mode){
+      setMode(mode);
+
+      const th = addThinking();
+      let q = "Dammi una lettura pre-match.";
+      if (mode === "TOTALS"){
+        const t = getMainTotals(currentEvent);
+        q = t?.line
+          ? `Dammi una previsione Under/Over sulla linea ${t.line}.`
+          : "Dammi una previsione Under/Over (se manca la linea, resta prudente).";
+      } else if (mode === "BTTS"){
+        q = "Dammi una previsione Gol/NoGol (se i dati non ci sono, dillo chiaramente).";
+      } else if (mode === "EXACT"){
+        q = "Dammi 1–2 risultati esatti plausibili, senza inventare dati.";
+      } else if (mode === "SCORER"){
+        q = "Dammi 1–3 marcatori probabili SOLO se hai disponibilità affidabile (no infortunati/squalificati). Altrimenti dimmi che non puoi.";
+      }
+
+      const ans = await askBetty(q);
+      removeThinking(th);
+      addBettyBubble(ans);
+      chatHistory.push({ role:"assistant", content: ans });
     }
 
     /* ===== EVENTS ===== */
@@ -968,11 +1008,14 @@
       if (custom) $.sportCustom.focus();
     });
 
-    // ✅ tab = previsione immediata (non messaggi “modalità attiva”)
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", ()=>{
         if (btn.classList.contains("hidden")) return;
-        runTabPrediction(btn.dataset.mode);
+        if (!currentEvent){
+          addBettyBubble("Apri prima un match e poi scegli la modalità 😊");
+          return;
+        }
+        autoAskForMode(btn.dataset.mode);
       });
     });
 
@@ -1008,3 +1051,4 @@
   </script>
 </body>
 </html>
+
