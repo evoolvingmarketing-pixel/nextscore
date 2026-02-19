@@ -6,7 +6,6 @@
   <title>NextScore — Match Center (Light)</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text y='50' font-size='50'>⚡</text></svg>">
-
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -21,6 +20,8 @@
       --accent:#f59e0b;
       --accent2:#fb923c;
       --soft:#fff7ed;
+      --danger:#ef4444;
+      --ok:#22c55e;
     }
     html,body{ font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
     .cardShadow{ box-shadow: var(--shadow); }
@@ -281,6 +282,7 @@
           <span class="chip">stile: light premium</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
+          <span class="chip" id="chipHub">hub: —</span>
         </div>
       </div>
     </section>
@@ -338,34 +340,20 @@
   </div>
 
   <script>
-    /* ===== CONFIG ===== */
+    /* =========================
+       CONFIG PRINCIPALE
+    ========================== */
     const SERVICE_BASE = "https://get-odds-299332443653.europe-west8.run.app";
-    const MAX_COUNT = 100;
 
-    /* ===== DEMO DATA (fallback) ===== */
-    function buildDemoEvents(){
-      const now = Date.now();
-      const mk = (id, home, away, mins) => ({
-        id,
-        commence_time: new Date(now + mins*60*1000).toISOString(),
-        home_team: home,
-        away_team: away,
-        outcomes: [
-          { name:"Home", prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name:"Away", prob: 25.5, odds: null },
-        ],
-        totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
-        ],
-      });
-      return [
-        mk("demo_1","Arsenal","Liverpool",90),
-        mk("demo_2","Inter","Juventus",140),
-        mk("demo_3","Real Madrid","Barcelona",210),
-        mk("demo_4","PSG","Marseille",260),
-      ];
-    }
+    // ✅ HUB REALE (diretto)
+    const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
+
+    // ✅ PROXY HUB (se esiste su get-odds)
+    // ATTENZIONE: se il tuo get-odds NON ha queste route, fallirà e passeremo in fallback automatico
+    const HUB_PROXY_RESOLVE = SERVICE_BASE + "/football-hub/resolve";
+    const HUB_PROXY_CONTEXT = SERVICE_BASE + "/football-hub/context";
+
+    const MAX_COUNT = 100;
 
     /* ===== DOM ===== */
     const el = (id) => document.getElementById(id);
@@ -377,6 +365,7 @@
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
       chipContext: el("chipContext"),
+      chipHub: el("chipHub"),
 
       sport: el("sport"),
       sportCustom: el("sportCustom"),
@@ -414,7 +403,15 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    /* ===== HELPERS ===== */
+    /* =========================
+       HELPERS UI
+    ========================== */
+    function showNotice(txt){
+      $.notice.textContent = txt;
+      $.notice.classList.remove("hidden");
+    }
+    function hideNotice(){ $.notice.classList.add("hidden"); }
+
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -445,25 +442,17 @@
     function toItOutcome(name=""){
       return /draw/i.test(name) ? "Pareggio" : /home/i.test(name) ? "Casa" : /away/i.test(name) ? "Trasferta" : name;
     }
-    function showNotice(txt){
-      $.notice.textContent = txt;
-      $.notice.classList.remove("hidden");
-    }
-    function hideNotice(){ $.notice.classList.add("hidden"); }
-
     function emptyState(msg){
       return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
+        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
           ${esc(msg)}
         </div>
       `;
     }
-
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
-
     function setLogoNode(node, teamName, logoUrl){
       node.classList.remove("fallback");
       node.innerHTML = "";
@@ -485,7 +474,40 @@
       node.appendChild(img);
     }
 
-    /* ===== API (Odds list) ===== */
+    /* =========================
+       DEMO
+    ========================== */
+    function buildDemoEvents(){
+      const now = Date.now();
+      const mk = (id, home, away, mins) => ({
+        id,
+        commence_time: new Date(now + mins*60*1000).toISOString(),
+        home_team: home,
+        away_team: away,
+        outcomes: [
+          { name:"Home", prob: 48.5, odds: null },
+          { name:"Draw", prob: 26.0, odds: null },
+          { name:"Away", prob: 25.5, odds: null },
+        ],
+        totals: [
+          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
+        ],
+      });
+      return [
+        mk("demo_1","Arsenal","Liverpool",90),
+        mk("demo_2","Inter","Juventus",140),
+        mk("demo_3","Real Madrid","Barcelona",210),
+        mk("demo_4","PSG","Marseille",260),
+      ];
+    }
+    function setDemoMode(on){
+      isDemoMode = !!on;
+      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    }
+
+    /* =========================
+       ODDS API
+    ========================== */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -499,26 +521,33 @@
       return r.json();
     }
 
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    /* =========================
+       HUB: PROXY + FALLBACK
+    ========================== */
+    async function fetchJsonOrThrow(url){
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      let data = null;
+      try { data = await r.json(); }
+      catch { data = { ok:false, error:"Invalid JSON", raw: await r.text().catch(()=> "") }; }
+      if (!r.ok) {
+        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : ("HTTP " + r.status);
+        throw new Error(msg);
+      }
+      return data;
     }
 
-    /* ===== API (Football HUB via get-odds PROXY) ===== */
-    async function hubResolve(home, away, dateStr){
-      const url = new URL(SERVICE_BASE + "/football-hub/resolve");
-      url.searchParams.set("home", home);
-      url.searchParams.set("away", away);
-      url.searchParams.set("date", dateStr);
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+    function buildResolveUrl(base, home, away, dateStr){
+      const u = new URL(base);
+      u.searchParams.set("home", home);
+      u.searchParams.set("away", away);
+      u.searchParams.set("date", dateStr);
+      return u.toString();
     }
 
-    async function hubContext(fixtureKeyOrId){
-      const url = new URL(SERVICE_BASE + "/football-hub/context");
-      url.searchParams.set("fixture", String(fixtureKeyOrId));
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+    function buildContextUrl(base, fixture){
+      const u = new URL(base);
+      u.searchParams.set("fixture", String(fixture));
+      return u.toString();
     }
 
     function pickFixtureKey(resolveJson){
@@ -529,8 +558,50 @@
         resolveJson?.resolved?.fixture_id ||
         resolveJson?.resolved?.fixture_key ||
         resolveJson?.resolved?.id ||
+        resolveJson?.resolved?.fixture ||
         null
       );
+    }
+
+    async function hubResolve(home, away, dateStr){
+      // 1) PROVIAMO PROXY (se esiste)
+      try{
+        const urlProxy = buildResolveUrl(HUB_PROXY_RESOLVE, home, away, dateStr);
+        const res = await fetchJsonOrThrow(urlProxy);
+        $.chipHub.textContent = "hub: proxy";
+        return { via:"proxy", res };
+      }catch(e1){
+        // 2) FALLBACK: HUB DIRETTO
+        try{
+          const urlDirect = buildResolveUrl(FOOTBALL_HUB_BASE + "/resolve", home, away, dateStr);
+          const res = await fetchJsonOrThrow(urlDirect);
+          $.chipHub.textContent = "hub: diretto";
+          return { via:"direct", res };
+        }catch(e2){
+          $.chipHub.textContent = "hub: FAIL";
+          throw new Error("Resolve fallito. Proxy: " + (e1?.message||e1) + " | Diretto: " + (e2?.message||e2));
+        }
+      }
+    }
+
+    async function hubContext(fixture){
+      // usa lo stesso canale usato dal resolve (proxy se possibile, altrimenti diretto)
+      // tentiamo proxy, poi fallback diretto
+      try{
+        const urlProxy = buildContextUrl(HUB_PROXY_CONTEXT, fixture);
+        const ctx = await fetchJsonOrThrow(urlProxy);
+        $.chipHub.textContent = "hub: proxy";
+        return { via:"proxy", ctx };
+      }catch(e1){
+        try{
+          const urlDirect = buildContextUrl(FOOTBALL_HUB_BASE + "/context", fixture);
+          const ctx = await fetchJsonOrThrow(urlDirect);
+          $.chipHub.textContent = "hub: diretto";
+          return { via:"direct", ctx };
+        }catch(e2){
+          throw new Error("Context fallito. Proxy: " + (e1?.message||e1) + " | Diretto: " + (e2?.message||e2));
+        }
+      }
     }
 
     async function getContextBundleForEvent(ev){
@@ -547,27 +618,28 @@
         return bundle;
       }
 
-      const res = await hubResolve(home, away, dateStr);
-      if (!res?.ok){
-        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture:null };
+      const { res: resolveJson } = await hubResolve(home, away, dateStr);
+
+      if (!resolveJson?.ok){
+        const bundle = { ok:false, reason:"resolve_not_ok", resolve: resolveJson, context:null, fixture:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
-      const fixture = pickFixtureKey(res);
+      const fixture = pickFixtureKey(resolveJson);
       if (!fixture){
-        const bundle = { ok:false, reason:"resolve_no_fixture", resolve:res || null, context:null, fixture:null };
+        const bundle = { ok:false, reason:"resolve_no_fixture", resolve: resolveJson, context:null, fixture:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
-      const ctx = await hubContext(fixture);
+      const { ctx: contextJson } = await hubContext(fixture);
 
       const bundle = {
-        ok: !!ctx?.ok,
-        reason: ctx?.ok ? "ok" : "context_failed",
-        resolve: res,
-        context: ctx,
+        ok: !!contextJson?.ok,
+        reason: contextJson?.ok ? "ok" : "context_not_ok",
+        resolve: resolveJson,
+        context: contextJson,
         fixture
       };
 
@@ -575,55 +647,9 @@
       return bundle;
     }
 
-    /* ===== LOAD EVENTS ===== */
-    async function load(){
-      $.status.textContent = "stato: carico…";
-      $.chipContext.textContent = "context: —";
-      hideNotice();
-
-      try{
-        const data = await fetchEvents();
-        const rate = data?.rate || {};
-        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
-
-        const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
-
-        if (mustDemo){
-          setDemoMode(true);
-          showNotice("⚠️ Limite chiamate raggiunto (remaining=0). Modalità DEMO attiva.");
-          lastData = buildDemoEvents();
-          $.status.textContent = "stato: demo";
-          $.chipCount.textContent = `match: ${lastData.length || 0}`;
-          renderCards(lastData);
-          return;
-        }
-
-        setDemoMode(false);
-
-        lastData = data.events || [];
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-
-        if (!lastData.length){
-          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
-          $.status.textContent = "stato: ok (0)";
-          return;
-        }
-
-        renderCards(lastData);
-        $.status.textContent = "stato: ok";
-      }catch(e){
-        console.error(e);
-        setDemoMode(true);
-        showNotice("⚠️ Problema di rete/backend. Modalità DEMO attiva.");
-        lastData = buildDemoEvents();
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-        renderCards(lastData);
-        $.status.textContent = "stato: demo";
-      }
-    }
-
-    /* ===== RENDER CARDS ===== */
+    /* =========================
+       RENDER CARDS
+    ========================== */
     function renderCards(events){
       $.cards.innerHTML = events.map(renderCard).join("");
     }
@@ -652,7 +678,7 @@
       const pill = (v)=> v ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`;
 
       return `
-        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
+        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
@@ -694,8 +720,7 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary"
-                    onclick='openBetty(${safeJson(ev)})'>
+            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
@@ -703,7 +728,9 @@
       `;
     }
 
-    /* ===== MODAL ===== */
+    /* =========================
+       MODAL + CHAT UI
+    ========================== */
     function openModal(){
       $.overlay.classList.add("show");
       $.overlay.setAttribute("aria-hidden","false");
@@ -715,7 +742,6 @@
       $.overlay.setAttribute("aria-hidden","true");
       document.body.style.overflow = "";
     }
-
     function setMode(mode){
       currentMode = mode;
       $.tabBtns.forEach(b=>{
@@ -723,7 +749,6 @@
         b.classList.toggle("active", b.dataset.mode === mode);
       });
     }
-
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -732,7 +757,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -745,7 +769,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addWarn(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -756,7 +779,16 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
+    function addError(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleBetty" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08);">
+            ❌ ${esc(text)}
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
     function addThinking(){
       const id = "t_" + Math.random().toString(36).slice(2);
       $.chatFeed.insertAdjacentHTML("beforeend", `
@@ -775,7 +807,6 @@
       const n = document.getElementById(id);
       if (n) n.remove();
     }
-
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
       $.tabBTTS.classList.toggle("hidden", !soccer);
@@ -789,7 +820,9 @@
       }
     }
 
-    /* ===== BETTY CALL ===== */
+    /* =========================
+       BETTY
+    ========================== */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context);
       const ctxNote = hasCtx
@@ -800,7 +833,7 @@
         mode === "SCORER"
           ? "Se modalità MARCATORE: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo."
         : mode === "EXACT"
-          ? "Se modalità RISULTATO ESATTO: proponi 1–2 score coerenti. Se mancano dati, fai lettura prudente."
+          ? "Se modalità RISULTATO ESATTO: proponi 1–2 score coerenti SOLO se hai dati in contesto; altrimenti fai lettura prudente e dichiaralo."
         : mode === "BTTS"
           ? "Se modalità GOL/NOGOL: usa trend se presenti nel contesto; altrimenti dichiara che mancano i dati."
         : mode === "TOTALS"
@@ -867,7 +900,6 @@
 
         const text = extractBettyText(data);
         if (!text) throw new Error("Risposta vuota (nessun campo content/message/answer).");
-
         return text;
 
       }catch(e){
@@ -876,7 +908,9 @@
       }
     }
 
-    /* ===== PUBLIC ===== */
+    /* =========================
+       OPEN BETTY
+    ========================== */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -906,30 +940,31 @@
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
-          addBettyBubble("Perfetto ✅ Contesto agganciato. Ora posso ragionare su dati reali.");
+          addBettyBubble("Perfetto ✅ Contesto agganciato.");
 
-          const hLogo = bundle?.resolve?.home_logo || bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo;
-          const aLogo = bundle?.resolve?.away_logo || bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo;
-          setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
-          setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
+          const hLogo = bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo || bundle?.resolve?.home_logo || null;
+          const aLogo = bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo || bundle?.resolve?.away_logo || null;
+          setLogoNode($.mhHomeLogo, ev.home_team, hLogo);
+          setLogoNode($.mhAwayLogo, ev.away_team, aLogo);
 
-          // se però il contesto è vuoto/null, avvisiamo (così capisci subito dov'è il problema)
-          const c = bundle.context?.context || bundle.context; // alcuni hub wrappano in {context:{...}}
-          const formNull = !c?.form;
-          const standingsNull = !c?.standings;
-          const scorersNull = !c?.scorers;
-          const injuriesNull = !c?.injuries;
-          if (formNull && standingsNull && scorersNull && injuriesNull){
-            addWarn("Nota: il football-hub ha agganciato la fixture ma sta tornando CONTENUTI null (form/standings/scorers/injuries). Qui va sistemato il servizio football-hub.");
+          // Debug utile: se tutto è null, te lo dico
+          const ctx = bundle.context?.context || bundle.context;
+          const nothing =
+            (!ctx?.form) && (!ctx?.standings) && (!ctx?.injuries) && (!ctx?.scorers) && (!ctx?.h2h);
+
+          if (nothing){
+            addWarn("Il match è stato risolto, ma il contesto è vuoto (form/standings/injuries/scorers/h2h null). Qui va sistemato il football-hub.");
           }
+
         }else{
           $.chipContext.textContent = "context: NO";
-          addWarn("Non sono riuscita ad agganciare il contesto (resolve/context). Farò una lettura BASE senza inventare dati.");
+          addError("Non aggancio il contesto. Dettaglio: " + (bundle?.reason || "sconosciuto"));
+          if (bundle?.resolve) addWarn("Risposta resolve: " + JSON.stringify(bundle.resolve).slice(0,300) + "...");
         }
       }catch(err){
         console.error(err);
         $.chipContext.textContent = "context: NO";
-        addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
+        addError("Errore aggancio contesto: " + String(err?.message || err));
       }
 
       const th = addThinking();
@@ -940,7 +975,60 @@
       chatHistory.push({ role:"assistant", content: opening });
     }
 
-    /* ===== EVENTS ===== */
+    /* =========================
+       LOAD EVENTS
+    ========================== */
+    async function load(){
+      $.status.textContent = "stato: carico…";
+      $.chipContext.textContent = "context: —";
+      $.chipHub.textContent = "hub: —";
+      hideNotice();
+
+      try{
+        const data = await fetchEvents();
+        const rate = data?.rate || {};
+        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
+
+        const remaining = Number(rate.remaining ?? NaN);
+        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
+
+        if (mustDemo){
+          setDemoMode(true);
+          showNotice("⚠️ Limite chiamate raggiunto (remaining=0) o backend ok=false. Modalità DEMO attiva.");
+          lastData = buildDemoEvents();
+          $.status.textContent = "stato: demo";
+          $.chipCount.textContent = `match: ${lastData.length || 0}`;
+          renderCards(lastData);
+          return;
+        }
+
+        setDemoMode(false);
+
+        lastData = data.events || [];
+        $.chipCount.textContent = `match: ${lastData.length || 0}`;
+
+        if (!lastData.length){
+          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
+          $.status.textContent = "stato: ok (0)";
+          return;
+        }
+
+        renderCards(lastData);
+        $.status.textContent = "stato: ok";
+      }catch(e){
+        console.error(e);
+        setDemoMode(true);
+        showNotice("⚠️ Problema di rete/backend odds. Modalità DEMO attiva.");
+        lastData = buildDemoEvents();
+        $.chipCount.textContent = `match: ${lastData.length || 0}`;
+        renderCards(lastData);
+        $.status.textContent = "stato: demo";
+      }
+    }
+
+    /* =========================
+       EVENTS
+    ========================== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
