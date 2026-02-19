@@ -341,10 +341,7 @@
   <script>
     /* ===== CONFIG ===== */
     const SERVICE_BASE = "https://get-odds-299332443653.europe-west8.run.app";
-
-    // hub (se non aggancia, va lo stesso)
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-
     const MAX_COUNT = 100;
 
     /* ===== DEMO DATA (fallback) ===== */
@@ -519,11 +516,79 @@
       return r.json();
     }
 
-    async function hubContext(fixtureId){
-      const url = new URL(FOOTBALL_HUB_BASE + "/context");
-      url.searchParams.set("fixture", String(fixtureId));
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+    async function hubContext(fixtureKeyOrId){
+      // ROBUST: alcuni hub vogliono ?fixture= , altri ?fixture_key=
+      const base = FOOTBALL_HUB_BASE + "/context";
+
+      // Proviamo prima fixture_key
+      const u1 = new URL(base);
+      u1.searchParams.set("fixture_key", String(fixtureKeyOrId));
+
+      const r1 = await fetch(u1, { headers:{ "Accept":"application/json" }});
+      if (r1.ok){
+        const j1 = await r1.json().catch(()=>null);
+        // se ok true o almeno non "Missing ..."
+        if (j1 && (j1.ok === true || !j1.error)) return j1;
+      } else {
+        // se non ok, leggiamo comunque per capire
+        await r1.text().catch(()=> "");
+      }
+
+      // fallback: fixture
+      const u2 = new URL(base);
+      u2.searchParams.set("fixture", String(fixtureKeyOrId));
+      const r2 = await fetch(u2, { headers:{ "Accept":"application/json" }});
+      return r2.json();
+    }
+
+    function extractFixtureKey(resolveResp){
+      // Supporta formati diversi:
+      // A) { ok:true, fixture_key:"..." }
+      // B) { ok:true, resolved:{ fixture_key:"..." } }
+      // C) { ok:true, resolved:{ fixture_id:123 } }
+      // D) { ok:true, fixture_id:123 }
+      if (!resolveResp) return null;
+
+      if (resolveResp.fixture_key) return resolveResp.fixture_key;
+      if (resolveResp.fixture_id) return resolveResp.fixture_id;
+
+      const r = resolveResp.resolved || resolveResp.result || null;
+      if (r){
+        if (r.fixture_key) return r.fixture_key;
+        if (r.fixture_id) return r.fixture_id;
+        if (r.fixtureId) return r.fixtureId;
+      }
+
+      // altro: se l’hub ti ritorna direttamente fixture_key in root ma con nome diverso
+      if (resolveResp.fixture) return resolveResp.fixture;
+      return null;
+    }
+
+    function extractLogos(resolveResp){
+      // Supporta più shape
+      const out = { homeLogo:null, awayLogo:null };
+      if (!resolveResp) return out;
+
+      // alcuni mettono in resolved
+      const r = resolveResp.resolved || resolveResp.result || resolveResp || null;
+
+      out.homeLogo =
+        r?.home_logo ||
+        r?.homeLogo ||
+        r?.home?.logo ||
+        resolveResp?.home_logo ||
+        resolveResp?.home?.logo ||
+        null;
+
+      out.awayLogo =
+        r?.away_logo ||
+        r?.awayLogo ||
+        r?.away?.logo ||
+        resolveResp?.away_logo ||
+        resolveResp?.away?.logo ||
+        null;
+
+      return out;
     }
 
     async function getContextBundleForEvent(ev){
@@ -535,27 +600,34 @@
       if (contextCache.has(key)) return contextCache.get(key);
 
       if (isDemoMode){
-        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_id:null };
+        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_key:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
       const res = await hubResolve(home, away, dateStr);
-      if (!res?.ok || !res?.found || !res?.resolved?.fixture_id){
-        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_id:null };
+
+      if (!res?.ok){
+        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
-      const fixtureId = res.resolved.fixture_id;
-      const ctx = await hubContext(fixtureId);
+      const fixtureKey = extractFixtureKey(res);
+      if (!fixtureKey){
+        const bundle = { ok:false, reason:"resolve_no_fixture_key", resolve:res || null, context:null, fixture_key:null };
+        contextCache.set(key, bundle);
+        return bundle;
+      }
+
+      const ctx = await hubContext(fixtureKey);
 
       const bundle = {
         ok: !!ctx?.ok,
         reason: ctx?.ok ? "ok" : "context_failed",
         resolve: res,
         context: ctx,
-        fixture_id: fixtureId
+        fixture_key: fixtureKey
       };
 
       contextCache.set(key, bundle);
@@ -900,10 +972,9 @@
           $.chipContext.textContent = "context: ok";
           addBettyBubble("Perfetto ✅ Contesto agganciato. Ora posso ragionare su dati reali.");
 
-          const hLogo = bundle?.resolve?.resolved?.home_logo || bundle?.resolve?.resolved?.home?.logo;
-          const aLogo = bundle?.resolve?.resolved?.away_logo || bundle?.resolve?.resolved?.away?.logo;
-          setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
-          setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
+          const logos = extractLogos(bundle.resolve);
+          setLogoNode($.mhHomeLogo, ev.home_team, logos.homeLogo || null);
+          setLogoNode($.mhAwayLogo, ev.away_team, logos.awayLogo || null);
         }else{
           $.chipContext.textContent = "context: NO";
           addWarn("Non sono riuscita ad agganciare il contesto (resolve/context). Farò una lettura BASE senza inventare dati.");
@@ -979,4 +1050,3 @@
   </script>
 </body>
 </html>
-
