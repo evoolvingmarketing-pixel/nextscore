@@ -280,7 +280,6 @@
           <span class="chip">stile: light premium</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
-          <span class="chip" id="chipHub">hub: —</span>
         </div>
       </div>
     </section>
@@ -341,11 +340,6 @@
     /* ===== CONFIG ===== */
     const SERVICE_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-
-    // ✅ PROXY via get-odds (consigliato)
-    const HUB_PROXY_RESOLVE  = SERVICE_BASE + "/football-hub/resolve";
-    const HUB_PROXY_CONTEXT  = SERVICE_BASE + "/football-hub/context";
-
     const MAX_COUNT = 100;
 
     /* ===== DEMO DATA (fallback) ===== */
@@ -383,7 +377,6 @@
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
       chipContext: el("chipContext"),
-      chipHub: el("chipHub"),
 
       sport: el("sport"),
       sportCustom: el("sportCustom"),
@@ -471,15 +464,6 @@
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
 
-    async function fetchJsonOrThrow(url, opts){
-      const r = await fetch(url, opts || { headers:{ "Accept":"application/json" }});
-      const t = await r.text().catch(()=> "");
-      let j = null;
-      try{ j = t ? JSON.parse(t) : null; }catch{ j = null; }
-      if (!r.ok) throw new Error((j && (j.error || j.message)) || t || ("HTTP " + r.status));
-      return j;
-    }
-
     function setLogoNode(node, teamName, logoUrl){
       node.classList.remove("fallback");
       node.innerHTML = "";
@@ -501,6 +485,70 @@
       node.appendChild(img);
     }
 
+    /* ===== CHAT UI HELPERS ===== */
+    function addBettyBubble(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="miniName">Betty</div>
+            <div class="bubble bubbleBetty">${esc(text)}</div>
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+
+    function addWarn(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleBetty" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.06);">
+            ❌ ${esc(text)}
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+
+    function addInfo(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleBetty" style="border-color:rgba(245,158,11,.35);background:#fff7ed;">
+            ⚠️ ${esc(text)}
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+
+    function addUserBubble(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleUser">${esc(text)}</div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+
+    function addThinking(){
+      const id = "t_" + Math.random().toString(36).slice(2);
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div id="${id}" class="bubbleRow">
+          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="miniName">Betty</div>
+            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+      return id;
+    }
+    function removeThinking(id){
+      const n = document.getElementById(id);
+      if (n) n.remove();
+    }
+
     /* ===== API (Odds list) ===== */
     async function fetchEvents(){
       const sport = chosenSport();
@@ -511,7 +559,8 @@
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
       url.searchParams.set("markets", "h2h,totals");
-      return fetchJsonOrThrow(url.toString(), { headers:{ "Accept":"application/json" }});
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      return r.json();
     }
 
     function setDemoMode(on){
@@ -519,33 +568,30 @@
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
-    /* ===== Football HUB (resolve + context) =====
-       IMPORTANTISSIMO: /context vuole fixture_key (NON fixture)
-    */
+    /* ===== API (Football HUB context) ===== */
     async function hubResolve(home, away, dateStr){
-      const params = new URLSearchParams({ home, away, date: dateStr });
-
-      // PROXY -> fallback diretto
-      try{
-        $.chipHub.textContent = "hub: proxy";
-        return await fetchJsonOrThrow(`${HUB_PROXY_RESOLVE}?${params.toString()}`);
-      }catch(e1){
-        $.chipHub.textContent = "hub: diretto";
-        return await fetchJsonOrThrow(`${FOOTBALL_HUB_BASE}/resolve?${params.toString()}`);
-      }
+      const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
+      url.searchParams.set("home", home);
+      url.searchParams.set("away", away);
+      url.searchParams.set("date", dateStr);
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      return r.json();
     }
 
     async function hubContextByFixtureKey(fixtureKey){
-      const params = new URLSearchParams({ fixture_key: String(fixtureKey) });
+      const url = new URL(FOOTBALL_HUB_BASE + "/context");
+      url.searchParams.set("fixture_key", String(fixtureKey));
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      return r.json();
+    }
 
-      // PROXY -> fallback diretto
-      try{
-        $.chipHub.textContent = "hub: proxy";
-        return await fetchJsonOrThrow(`${HUB_PROXY_CONTEXT}?${params.toString()}`);
-      }catch(e1){
-        $.chipHub.textContent = "hub: diretto";
-        return await fetchJsonOrThrow(`${FOOTBALL_HUB_BASE}/context?${params.toString()}`);
-      }
+    async function hubContextByTeams(home, away, dateStr){
+      const url = new URL(FOOTBALL_HUB_BASE + "/context");
+      url.searchParams.set("home", home);
+      url.searchParams.set("away", away);
+      url.searchParams.set("date", dateStr);
+      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+      return r.json();
     }
 
     async function getContextBundleForEvent(ev){
@@ -562,17 +608,24 @@
         return bundle;
       }
 
-      // 1) resolve
       const res = await hubResolve(home, away, dateStr);
-      if (!res?.ok || !res?.fixture_key){
+
+      // il tuo football-hub ritorna: { ok:true, fixture_key:"..." ... }
+      const fixtureKey = res?.fixture_key || null;
+
+      if (!res?.ok || !fixtureKey){
         const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
-      // 2) context (✅ fixture_key)
-      const fixtureKey = res.fixture_key;
-      const ctx = await hubContextByFixtureKey(fixtureKey);
+      // 1) tentativo: /context?fixture_key=...
+      let ctx = await hubContextByFixtureKey(fixtureKey);
+
+      // 2) fallback: /context?home&away&date (se serve)
+      if (!ctx?.ok){
+        ctx = await hubContextByTeams(home, away, dateStr);
+      }
 
       const bundle = {
         ok: !!ctx?.ok,
@@ -590,7 +643,6 @@
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
-      $.chipHub.textContent = "hub: —";
       hideNotice();
 
       try{
@@ -735,69 +787,6 @@
       });
     }
 
-    function addUserBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleUser">${esc(text)}</div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addBettyBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty">${esc(text)}</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addWarn(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleBetty" style="border-color:rgba(245,158,11,.35);background:#fff7ed;">
-            ⚠️ ${esc(text)}
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addErr(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleBetty" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08);">
-            ❌ ${esc(text)}
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addThinking(){
-      const id = "t_" + Math.random().toString(36).slice(2);
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div id="${id}" class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-      return id;
-    }
-    function removeThinking(id){
-      const n = document.getElementById(id);
-      if (n) n.remove();
-    }
-
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
       $.tabBTTS.classList.toggle("hidden", !soccer);
@@ -813,18 +802,18 @@
 
     /* ===== BETTY CALL ===== */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
-      const hasCtx = !!(bundle && bundle.ok && bundle.context);
+      const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
       const ctxNote = hasCtx
-        ? "Hai un CONTEXTO dati. Usalo."
+        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
         : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
 
       const modeRule =
         mode === "SCORER"
           ? "Se modalità MARCATORE: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo."
         : mode === "EXACT"
-          ? "Se modalità RISULTATO ESATTO: proponi 1–2 score coerenti. Se mancano dati, fai lettura prudente."
+          ? "Se modalità RISULTATO ESATTO: proponi 1–2 score coerenti. Se mancano dati, fai lettura prudente basata sulle quote."
         : mode === "BTTS"
-          ? "Se modalità GOL/NOGOL: usa trend se presenti nel contesto; altrimenti dichiara che mancano i dati."
+          ? "Se modalità GOL/NOGOL: usa trend se presenti nel contesto; altrimenti dichiaralo."
         : mode === "TOTALS"
           ? "Se modalità UNDER/OVER: usa la linea disponibile; se manca, chiedi quale linea (2.5/3.5)."
         : "Analisi: sintetica ma motivata. Se un dato non c’è nel contesto, non inventarlo.";
@@ -864,7 +853,7 @@
         mode: currentMode,
         prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
         event: currentEvent,
-        context: (currentContextBundle && currentContextBundle.ok) ? currentContextBundle.context : null,
+        context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
         resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
         history: chatHistory.slice(-10),
         demo: isDemoMode,
@@ -872,11 +861,20 @@
       };
 
       try{
-        const data = await fetchJsonOrThrow(SERVICE_BASE + "/betty-chat", {
+        const r = await fetch(SERVICE_BASE + "/betty-chat", {
           method:"POST",
-          headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+          headers:{ "Content-Type":"application/json" },
           body: JSON.stringify(payload)
         });
+
+        let data = null;
+        try{ data = await r.json(); }
+        catch{
+          const t = await r.text().catch(()=> "");
+          data = t || null;
+        }
+
+        if (!r.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + r.status));
 
         const text = extractBettyText(data);
         if (!text) throw new Error("Risposta vuota (nessun campo content/message/answer).");
@@ -919,21 +917,16 @@
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
           addBettyBubble("Perfetto ✅ Contesto agganciato. Ora posso ragionare su dati reali.");
-
-          // loghi (se il resolve li fornisce)
-          const hLogo = bundle?.resolve?.home_logo || bundle?.resolve?.home?.logo || bundle?.resolve?.resolved?.home_logo;
-          const aLogo = bundle?.resolve?.away_logo || bundle?.resolve?.away?.logo || bundle?.resolve?.resolved?.away_logo;
-          setLogoNode($.mhHomeLogo, ev.home_team, hLogo || null);
-          setLogoNode($.mhAwayLogo, ev.away_team, aLogo || null);
         }else{
           $.chipContext.textContent = "context: NO";
-          addErr(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "context_not_ok"}`);
-          if (bundle?.resolve) addWarn("Risposta resolve: " + JSON.stringify(bundle.resolve).slice(0, 500));
+          addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
+          if (bundle?.resolve) addInfo("Risposta resolve: " + JSON.stringify(bundle.resolve).slice(0, 800));
+          if (bundle?.context) addInfo("Risposta context: " + JSON.stringify(bundle.context).slice(0, 800));
         }
       }catch(err){
         console.error(err);
         $.chipContext.textContent = "context: NO";
-        addErr("Errore aggancio contesto: " + String(err?.message || err));
+        addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
 
       const th = addThinking();
