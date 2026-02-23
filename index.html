@@ -206,6 +206,28 @@
       border-color: rgba(245,158,11,.55);
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
+
+    .dbg{
+      border:1px dashed rgba(2,6,23,.18);
+      border-radius:16px;
+      padding:12px;
+      background:#fff;
+    }
+    .dbg pre{
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-size:12px;
+      line-height:1.35;
+      color:#0f172a;
+      max-height:220px;
+      overflow:auto;
+      margin-top:8px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(2,6,23,.10);
+      background:#f8fafc;
+    }
+
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
@@ -231,6 +253,23 @@
         <div id="statusInfo">stato: pronto</div>
       </div>
     </header>
+
+    <!-- DEBUG PANEL -->
+    <section class="dbg mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-sm font-extrabold">Debug rapido</div>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn" id="pingOdds">Ping get-odds</button>
+          <button class="btn" id="pingHub">Ping football-hub</button>
+          <button class="btn" id="pingBettyProxy">Ping betty via get-odds</button>
+          <button class="btn" id="pingBettyDirect">Ping betty diretto</button>
+        </div>
+      </div>
+      <pre id="dbgOut">—</pre>
+      <div class="text-[12px] text-slate-500 mt-2">
+        Se vedi errori CORS o “Failed to fetch”, il problema è l’origin (file:// o dominio non autorizzato).
+      </div>
+    </section>
 
     <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
       <div class="p-4 md:p-5">
@@ -340,7 +379,7 @@
     /* ===== CONFIG ===== */
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // ✅ separato
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // fallback
 
     const MAX_COUNT = 100;
 
@@ -404,6 +443,12 @@
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
+
+      dbgOut: el("dbgOut"),
+      pingOdds: el("pingOdds"),
+      pingHub: el("pingHub"),
+      pingBettyProxy: el("pingBettyProxy"),
+      pingBettyDirect: el("pingBettyDirect"),
     };
 
     /* ===== STATE ===== */
@@ -464,6 +509,27 @@
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+    }
+
+    function dbgWrite(obj){
+      try{
+        $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
+      }catch{
+        $.dbgOut.textContent = String(obj);
+      }
+    }
+
+    async function fetchJsonWithDebug(url, opts){
+      const r = await fetch(url, opts);
+      const txt = await r.text().catch(()=> "");
+      let json = null;
+      try{ json = txt ? JSON.parse(txt) : null; }catch{ json = null; }
+      if (!r.ok){
+        const err = new Error(`HTTP ${r.status} ${r.statusText}`);
+        err._debug = { url: String(url), status:r.status, statusText:r.statusText, body: txt?.slice(0,2000) };
+        throw err;
+      }
+      return json ?? txt;
     }
 
     function setLogoNode(node, teamName, logoUrl){
@@ -561,12 +627,9 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-
-      // ✅ aggiunto btts (Gol/NoGol) così i tab hanno senso
       url.searchParams.set("markets", "h2h,totals,btts");
 
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
 
     function setDemoMode(on){
@@ -580,15 +643,13 @@
       url.searchParams.set("home", home);
       url.searchParams.set("away", away);
       url.searchParams.set("date", dateStr);
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
 
     async function hubContextByFixtureKey(fixtureKey){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("fixture_key", String(fixtureKey));
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
 
     async function hubContextByTeams(home, away, dateStr){
@@ -596,8 +657,7 @@
       url.searchParams.set("home", home);
       url.searchParams.set("away", away);
       url.searchParams.set("date", dateStr);
-      const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-      return r.json();
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
 
     async function getContextBundleForEvent(ev){
@@ -648,6 +708,7 @@
 
       try{
         const data = await fetchEvents();
+
         const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
@@ -656,7 +717,7 @@
 
         if (mustDemo){
           setDemoMode(true);
-          showNotice("⚠️ Limite chiamate raggiunto (remaining=0). Modalità DEMO attiva.");
+          showNotice(`⚠️ DEMO attiva: remaining=${rate.remaining ?? "?"}.`);
           lastData = buildDemoEvents();
           $.status.textContent = "stato: demo";
           $.chipCount.textContent = `match: ${lastData.length || 0}`;
@@ -679,8 +740,18 @@
         $.status.textContent = "stato: ok";
       }catch(e){
         console.error(e);
+
+        // ✅ QUI ORA VEDI L’ERRORE REALE (HTTP/CORS/endpoint)
+        const dbg = e?._debug || null;
+        if (dbg){
+          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
+        }else{
+          showNotice(`❌ get-odds fallito: ${String(e?.message || e)} (possibile CORS/origin). Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
+        }
+
         setDemoMode(true);
-        showNotice("⚠️ Problema di rete/backend. Modalità DEMO attiva.");
         lastData = buildDemoEvents();
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
         renderCards(lastData);
@@ -840,7 +911,6 @@
         (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
       if (text) return text;
 
-      // se betty ritorna {ok:true, data:{...}}
       const text2 =
         (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
       if (text2) return text2;
@@ -848,35 +918,12 @@
       try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
     }
 
-    async function postJsonWithFallback(paths, payload){
-      let lastErr = null;
-
-      for (const p of paths){
-        try{
-          const url = BETTY_BASE.replace(/\/$/,"") + p;
-          const r = await fetch(url, {
-            method:"POST",
-            headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-            body: JSON.stringify(payload)
-          });
-
-          let data = null;
-          try{ data = await r.json(); }
-          catch{
-            const t = await r.text().catch(()=> "");
-            data = t || null;
-          }
-
-          if (!r.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + r.status));
-          return data;
-
-        }catch(e){
-          lastErr = e;
-          continue;
-        }
-      }
-
-      throw lastErr || new Error("Chiamata Betty fallita.");
+    async function postJson(url, payload){
+      return fetchJsonWithDebug(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify(payload)
+      });
     }
 
     async function askBetty(userText){
@@ -898,18 +945,30 @@
         sport: sportKey
       };
 
-      try{
-        // ✅ prova /chat (standard), poi /betty-chat (vecchio)
-        const data = await postJsonWithFallback(["/chat", "/betty-chat"], payload);
+      // ✅ ordine LOGICO: prima proxy su get-odds, poi diretto su betty-chat
+      const tries = [
+        { name:"proxy(get-odds)/betty-chat", url: ODDS_BASE + "/betty-chat" },
+        { name:"betty-direct/chat", url: BETTY_BASE + "/chat" },
+        { name:"betty-direct/betty-chat", url: BETTY_BASE + "/betty-chat" },
+      ];
 
-        const text = extractBettyText(data);
-        if (!text) throw new Error("Risposta vuota (nessun campo content/message/answer).");
-        return text;
+      let lastErr = null;
 
-      }catch(e){
-        console.error("Betty error:", e);
-        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
+      for (const t of tries){
+        try{
+          const data = await postJson(t.url, payload);
+          const text = extractBettyText(data);
+          if (!text) throw new Error(`Risposta vuota da ${t.name}`);
+          return text;
+        }catch(e){
+          lastErr = e;
+          const dbg = e?._debug || { where: t.name, error: String(e?.message || e) };
+          dbgWrite({ where: "askBetty", attempt: t.name, ...dbg });
+          continue;
+        }
       }
+
+      return `⚠️ Errore chiamata Betty (tutti i tentativi falliti).\nDettaglio: ${String(lastErr?.message || lastErr)}`;
     }
 
     /* ===== PUBLIC ===== */
@@ -946,8 +1005,6 @@
         }else{
           $.chipContext.textContent = "context: NO";
           addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
-          if (bundle?.resolve) addInfo("Risposta resolve: " + JSON.stringify(bundle.resolve).slice(0, 800));
-          if (bundle?.context) addInfo("Risposta context: " + JSON.stringify(bundle.context).slice(0, 800));
         }
       }catch(err){
         console.error(err);
@@ -963,7 +1020,7 @@
       chatHistory.push({ role:"assistant", content: opening });
     }
 
-    /* ===== EVENTS ===== */
+    /* ===== UI EVENTS ===== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -1014,6 +1071,43 @@
     $.closeModal.addEventListener("click", closeModal);
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
+
+    /* ===== DEBUG BUTTONS ===== */
+    $.pingOdds.addEventListener("click", async ()=>{
+      try{
+        const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
+        dbgWrite({ ping:"get-odds /", ok });
+      }catch(e){
+        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
+
+    $.pingHub.addEventListener("click", async ()=>{
+      try{
+        const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
+        dbgWrite({ ping:"football-hub /", ok });
+      }catch(e){
+        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
+
+    $.pingBettyProxy.addEventListener("click", async ()=>{
+      try{
+        const res = await postJson(ODDS_BASE + "/betty-chat", { ping:true });
+        dbgWrite({ ping:"proxy betty via get-odds /betty-chat", res });
+      }catch(e){
+        dbgWrite({ ping:"proxy betty via get-odds /betty-chat", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
+
+    $.pingBettyDirect.addEventListener("click", async ()=>{
+      try{
+        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
+        dbgWrite({ ping:"betty diretto /chat", res });
+      }catch(e){
+        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
 
     /* ===== INIT ===== */
     load();
