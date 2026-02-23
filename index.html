@@ -338,8 +338,10 @@
 
   <script>
     /* ===== CONFIG ===== */
-    const SERVICE_BASE = "https://get-odds-299332443653.europe-west8.run.app";
+    const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // ✅ separato
+
     const MAX_COUNT = 100;
 
     /* ===== DEMO DATA (fallback) ===== */
@@ -553,12 +555,16 @@
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
-      const url = new URL(SERVICE_BASE + "/get-odds");
+
+      const url = new URL(ODDS_BASE + "/get-odds");
       url.searchParams.set("sport", sport);
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals");
+
+      // ✅ aggiunto btts (Gol/NoGol) così i tab hanno senso
+      url.searchParams.set("markets", "h2h,totals,btts");
+
       const r = await fetch(url, { headers:{ "Accept":"application/json" }});
       return r.json();
     }
@@ -609,8 +615,6 @@
       }
 
       const res = await hubResolve(home, away, dateStr);
-
-      // il tuo football-hub ritorna: { ok:true, fixture_key:"..." ... }
       const fixtureKey = res?.fixture_key || null;
 
       if (!res?.ok || !fixtureKey){
@@ -619,10 +623,7 @@
         return bundle;
       }
 
-      // 1) tentativo: /context?fixture_key=...
       let ctx = await hubContextByFixtureKey(fixtureKey);
-
-      // 2) fallback: /context?home&away&date (se serve)
       if (!ctx?.ok){
         ctx = await hubContextByTeams(home, away, dateStr);
       }
@@ -836,9 +837,46 @@
       if (!data) return "";
       if (typeof data === "string") return data.trim();
       const text =
-        (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? "").toString().trim();
+        (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
       if (text) return text;
+
+      // se betty ritorna {ok:true, data:{...}}
+      const text2 =
+        (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
+      if (text2) return text2;
+
       try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
+    }
+
+    async function postJsonWithFallback(paths, payload){
+      let lastErr = null;
+
+      for (const p of paths){
+        try{
+          const url = BETTY_BASE.replace(/\/$/,"") + p;
+          const r = await fetch(url, {
+            method:"POST",
+            headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          let data = null;
+          try{ data = await r.json(); }
+          catch{
+            const t = await r.text().catch(()=> "");
+            data = t || null;
+          }
+
+          if (!r.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + r.status));
+          return data;
+
+        }catch(e){
+          lastErr = e;
+          continue;
+        }
+      }
+
+      throw lastErr || new Error("Chiamata Betty fallita.");
     }
 
     async function askBetty(userText){
@@ -861,20 +899,8 @@
       };
 
       try{
-        const r = await fetch(SERVICE_BASE + "/betty-chat", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        let data = null;
-        try{ data = await r.json(); }
-        catch{
-          const t = await r.text().catch(()=> "");
-          data = t || null;
-        }
-
-        if (!r.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + r.status));
+        // ✅ prova /chat (standard), poi /betty-chat (vecchio)
+        const data = await postJsonWithFallback(["/chat", "/betty-chat"], payload);
 
         const text = extractBettyText(data);
         if (!text) throw new Error("Risposta vuota (nessun campo content/message/answer).");
