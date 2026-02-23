@@ -627,7 +627,7 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals,btts");
+      url.searchParams.set("markets", "h2h,totals");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
