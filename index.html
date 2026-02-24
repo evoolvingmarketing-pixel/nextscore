@@ -578,17 +578,6 @@
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
 
-    function addInfo(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleBetty" style="border-color:rgba(245,158,11,.35);background:#fff7ed;">
-            ⚠️ ${esc(text)}
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -635,6 +624,18 @@
     function setDemoMode(on){
       isDemoMode = !!on;
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    }
+
+    /* ===== FIX: estrazione lista eventi compatibile ===== */
+    function extractEventsList(payload){
+      // payload può essere:
+      // 1) array diretto
+      // 2) oggetto { data: [...] }
+      // 3) oggetto { events: [...] } (vecchio)
+      if (Array.isArray(payload)) return payload;
+      if (payload && Array.isArray(payload.data)) return payload.data;
+      if (payload && Array.isArray(payload.events)) return payload.events;
+      return [];
     }
 
     /* ===== API (Football HUB context) ===== */
@@ -707,13 +708,13 @@
       hideNotice();
 
       try{
-        const data = await fetchEvents();
+        const payload = await fetchEvents();
 
-        const rate = data?.rate || {};
+        const rate = payload?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
         const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
+        const mustDemo = (payload?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
 
         if (mustDemo){
           setDemoMode(true);
@@ -727,10 +728,15 @@
 
         setDemoMode(false);
 
-        lastData = data.events || [];
+        // ✅ FIX: prima legge payload.data
+        lastData = extractEventsList(payload);
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
         if (!lastData.length){
+          // se ok ma vuoto -> messaggio chiaro
+          if (payload?.ok === true){
+            showNotice("⚠️ Risposta OK ma lista match vuota. Prova a cambiare sport/region o verifica che ci siano eventi disponibili.");
+          }
           $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
           $.status.textContent = "stato: ok (0)";
           return;
@@ -741,7 +747,6 @@
       }catch(e){
         console.error(e);
 
-        // ✅ QUI ORA VEDI L’ERRORE REALE (HTTP/CORS/endpoint)
         const dbg = e?._debug || null;
         if (dbg){
           showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
@@ -945,7 +950,6 @@
         sport: sportKey
       };
 
-      // ✅ ordine LOGICO: prima proxy su get-odds, poi diretto su betty-chat
       const tries = [
         { name:"proxy(get-odds)/betty-chat", url: ODDS_BASE + "/betty-chat" },
         { name:"betty-direct/chat", url: BETTY_BASE + "/chat" },
