@@ -67,12 +67,8 @@
       background:#fff;
       overflow:hidden;
       flex:0 0 auto;
-    }
-    .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
-    .tlogo.fallback{
       font-weight:900;
       color:#0f172a;
-      background:#f8fafc;
     }
     .vsPill{
       padding:4px 10px;
@@ -261,7 +257,6 @@
         <div class="flex flex-wrap gap-2">
           <button class="btn" id="pingOdds">Ping get-odds</button>
           <button class="btn" id="pingHub">Ping football-hub</button>
-          <button class="btn" id="pingBettyProxy">Ping betty via get-odds</button>
           <button class="btn" id="pingBettyDirect">Ping betty diretto</button>
         </div>
       </div>
@@ -341,10 +336,10 @@
             <div class="text-sm font-extrabold leading-tight">Betty</div>
 
             <div class="flex items-center gap-2">
-              <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
+              <div id="mhHomeLogo" class="tlogo" title="Home">H</div>
               <div id="mhHomeName" class="text-xs font-extrabold text-slate-800">—</div>
               <span class="vsPill">VS</span>
-              <div id="mhAwayLogo" class="tlogo fallback" title="Away">A</div>
+              <div id="mhAwayLogo" class="tlogo" title="Away">A</div>
               <div id="mhAwayName" class="text-xs font-extrabold text-slate-800">—</div>
             </div>
 
@@ -379,7 +374,7 @@
     /* ===== CONFIG ===== */
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // fallback
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // diretto
 
     const MAX_COUNT = 100;
 
@@ -392,12 +387,12 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name:"Home", prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name:"Away", prob: 25.5, odds: null },
+          { name:"Home", prob: 48.5, odds: 1.90 },
+          { name:"Draw", prob: 26.0, odds: 3.40 },
+          { name:"Away", prob: 25.5, odds: 4.10 },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
+          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:1.85}, {name:"Under", prob:48.0, odds:1.95} ] }
         ],
       });
       return [
@@ -447,7 +442,6 @@
       dbgOut: el("dbgOut"),
       pingOdds: el("pingOdds"),
       pingHub: el("pingHub"),
-      pingBettyProxy: el("pingBettyProxy"),
       pingBettyDirect: el("pingBettyDirect"),
     };
 
@@ -532,78 +526,73 @@
       return json ?? txt;
     }
 
-    function setLogoNode(node, teamName, logoUrl){
-      node.classList.remove("fallback");
-      node.innerHTML = "";
-      if (!logoUrl){
-        node.classList.add("fallback");
-        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
-        return;
+    /* ===== QUOTE: NORMALIZZAZIONE ===== */
+    function bestPriceFromMarket(bookmakers = [], marketKey, outcomeName){
+      let best = null;
+      for (const bm of bookmakers || []){
+        const m = (bm.markets || []).find(x => x.key === marketKey);
+        if (!m) continue;
+        const out = (m.outcomes || []).find(o => String(o.name).toLowerCase() === String(outcomeName).toLowerCase());
+        if (!out || typeof out.price !== "number") continue;
+        if (best === null || out.price > best) best = out.price;
       }
-      const img = document.createElement("img");
-      img.alt = teamName || "logo";
-      img.src = logoUrl;
-      img.loading = "lazy";
-      img.referrerPolicy = "no-referrer";
-      img.onerror = () => {
-        node.innerHTML = "";
-        node.classList.add("fallback");
-        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+      return best;
+    }
+
+    function bestTotalsLine(bookmakers = [], preferredPoint = 2.5){
+      const lines = new Map(); // point -> { point, over, under }
+      for (const bm of bookmakers || []){
+        const m = (bm.markets || []).find(x => x.key === "totals");
+        if (!m) continue;
+        for (const o of (m.outcomes || [])){
+          if (typeof o.point !== "number") continue;
+          const p = o.point;
+          const entry = lines.get(p) || { point:p, over:null, under:null };
+          if (String(o.name).toLowerCase() === "over" && typeof o.price === "number"){
+            if (entry.over === null || o.price > entry.over) entry.over = o.price;
+          }
+          if (String(o.name).toLowerCase() === "under" && typeof o.price === "number"){
+            if (entry.under === null || o.price > entry.under) entry.under = o.price;
+          }
+          lines.set(p, entry);
+        }
+      }
+      if (!lines.size) return null;
+      if (lines.has(preferredPoint)) return lines.get(preferredPoint);
+      return [...lines.values()].sort((a,b)=>a.point-b.point)[0];
+    }
+
+    function normalizeOddsEvent(ev){
+      const bms = ev.bookmakers || [];
+      const home = ev.home_team;
+      const away = ev.away_team;
+
+      const homeOdds = bestPriceFromMarket(bms, "h2h", home);
+      const awayOdds = bestPriceFromMarket(bms, "h2h", away);
+      const drawOdds = bestPriceFromMarket(bms, "h2h", "Draw");
+
+      const totals = bestTotalsLine(bms, 2.5);
+
+      return {
+        id: ev.id,
+        sport_key: ev.sport_key,
+        sport_title: ev.sport_title,
+        commence_time: ev.commence_time,
+        home_team: home,
+        away_team: away,
+        outcomes: [
+          { name: "Home", prob: null, odds: homeOdds },
+          { name: "Draw", prob: null, odds: drawOdds },
+          { name: "Away", prob: null, odds: awayOdds },
+        ],
+        totals: totals ? [{
+          point: totals.point,
+          outcomes: [
+            { name: "Over", prob: null, odds: totals.over, point: totals.point },
+            { name: "Under", prob: null, odds: totals.under, point: totals.point },
+          ]
+        }] : []
       };
-      node.appendChild(img);
-    }
-
-    /* ===== CHAT UI HELPERS ===== */
-    function addBettyBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty">${esc(text)}</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addWarn(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleBetty" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.06);">
-            ❌ ${esc(text)}
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addUserBubble(text){
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div class="bubbleRow">
-          <div class="bubble bubbleUser">${esc(text)}</div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-    }
-
-    function addThinking(){
-      const id = "t_" + Math.random().toString(36).slice(2);
-      $.chatFeed.insertAdjacentHTML("beforeend", `
-        <div id="${id}" class="bubbleRow">
-          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
-            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
-          </div>
-        </div>
-      `);
-      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
-      return id;
-    }
-    function removeThinking(id){
-      const n = document.getElementById(id);
-      if (n) n.remove();
     }
 
     /* ===== API (Odds list) ===== */
@@ -624,18 +613,6 @@
     function setDemoMode(on){
       isDemoMode = !!on;
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
-    }
-
-    /* ===== FIX: estrazione lista eventi compatibile ===== */
-    function extractEventsList(payload){
-      // payload può essere:
-      // 1) array diretto
-      // 2) oggetto { data: [...] }
-      // 3) oggetto { events: [...] } (vecchio)
-      if (Array.isArray(payload)) return payload;
-      if (payload && Array.isArray(payload.data)) return payload.data;
-      if (payload && Array.isArray(payload.events)) return payload.events;
-      return [];
     }
 
     /* ===== API (Football HUB context) ===== */
@@ -708,13 +685,13 @@
       hideNotice();
 
       try{
-        const payload = await fetchEvents();
+        const data = await fetchEvents();
 
-        const rate = payload?.rate || {};
+        const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
         const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (payload?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
+        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
 
         if (mustDemo){
           setDemoMode(true);
@@ -728,15 +705,13 @@
 
         setDemoMode(false);
 
-        // ✅ FIX: prima legge payload.data
-        lastData = extractEventsList(payload);
+        // ✅ QUI: data.data -> normalizzato
+        const raw = data?.data || data?.events || [];
+        lastData = (raw || []).map(normalizeOddsEvent);
+
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
         if (!lastData.length){
-          // se ok ma vuoto -> messaggio chiaro
-          if (payload?.ok === true){
-            showNotice("⚠️ Risposta OK ma lista match vuota. Prova a cambiare sport/region o verifica che ci siano eventi disponibili.");
-          }
           $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
           $.status.textContent = "stato: ok (0)";
           return;
@@ -790,7 +765,9 @@
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
 
-      const pill = (v)=> v ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`;
+      const pill = (v)=> (typeof v === "number")
+        ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>`
+        : `<span class="chip" style="opacity:.6;">—</span>`;
 
       return `
         <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
@@ -805,10 +782,10 @@
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
-            <div class="tlogo fallback" title="${h}">${hInitial}</div>
+            <div class="tlogo" title="${h}">${hInitial}</div>
             <div class="text-sm font-extrabold text-slate-900">${h}</div>
             <span class="vsPill">VS</span>
-            <div class="tlogo fallback" title="${a}">${aInitial}</div>
+            <div class="tlogo" title="${a}">${aInitial}</div>
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
@@ -824,7 +801,7 @@
               <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
               <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote “best” per bookmaker (proxy).</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker (proxy).</div>
             </div>
           </div>
 
@@ -884,17 +861,6 @@
         ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
         : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
 
-      const modeRule =
-        mode === "SCORER"
-          ? "Se modalità MARCATORE: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo."
-        : mode === "EXACT"
-          ? "Se modalità RISULTATO ESATTO: proponi 1–2 score coerenti. Se mancano dati, fai lettura prudente basata sulle quote."
-        : mode === "BTTS"
-          ? "Se modalità GOL/NOGOL: usa trend se presenti nel contesto; altrimenti dichiaralo."
-        : mode === "TOTALS"
-          ? "Se modalità UNDER/OVER: usa la linea disponibile; se manca, chiedi quale linea (2.5/3.5)."
-        : "Analisi: sintetica ma motivata. Se un dato non c’è nel contesto, non inventarlo.";
-
       return [
         "REGOLA ASSOLUTA:",
         "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
@@ -902,7 +868,6 @@
         "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
         "",
         ctxNote,
-        modeRule,
         "",
         "UTENTE:",
         userText || ""
@@ -932,10 +897,7 @@
     }
 
     async function askBetty(userText){
-      if (!currentEvent){
-        addBettyBubble("Seleziona prima un match 😊");
-        return "";
-      }
+      if (!currentEvent) return "Seleziona prima un match 😊";
 
       const sportKey = chosenSport();
 
@@ -950,29 +912,67 @@
         sport: sportKey
       };
 
-      const tries = [
-        { name:"proxy(get-odds)/betty-chat", url: ODDS_BASE + "/betty-chat" },
-        { name:"betty-direct/chat", url: BETTY_BASE + "/chat" },
-        { name:"betty-direct/betty-chat", url: BETTY_BASE + "/betty-chat" },
-      ];
-
-      let lastErr = null;
-
-      for (const t of tries){
-        try{
-          const data = await postJson(t.url, payload);
-          const text = extractBettyText(data);
-          if (!text) throw new Error(`Risposta vuota da ${t.name}`);
-          return text;
-        }catch(e){
-          lastErr = e;
-          const dbg = e?._debug || { where: t.name, error: String(e?.message || e) };
-          dbgWrite({ where: "askBetty", attempt: t.name, ...dbg });
-          continue;
-        }
+      // ✅ qui solo diretto betty, perché il proxy su get-odds dava 404
+      const url = BETTY_BASE + "/chat";
+      try{
+        const data = await postJson(url, payload);
+        const text = extractBettyText(data);
+        return text || "Risposta vuota da Betty.";
+      }catch(e){
+        const dbg = e?._debug || { where: "betty-direct/chat", error: String(e?.message || e) };
+        dbgWrite({ where:"askBetty", ...dbg });
+        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
       }
+    }
 
-      return `⚠️ Errore chiamata Betty (tutti i tentativi falliti).\nDettaglio: ${String(lastErr?.message || lastErr)}`;
+    /* ===== CHAT UI HELPERS ===== */
+    function addBettyBubble(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="miniName">Betty</div>
+            <div class="bubble bubbleBetty">${esc(text)}</div>
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+    function addWarn(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleBetty" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.06);">
+            ❌ ${esc(text)}
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+    function addUserBubble(text){
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div class="bubbleRow">
+          <div class="bubble bubbleUser">${esc(text)}</div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+    }
+    function addThinking(){
+      const id = "t_" + Math.random().toString(36).slice(2);
+      $.chatFeed.insertAdjacentHTML("beforeend", `
+        <div id="${id}" class="bubbleRow">
+          <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div class="miniName">Betty</div>
+            <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
+          </div>
+        </div>
+      `);
+      $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
+      return id;
+    }
+    function removeThinking(id){
+      const n = document.getElementById(id);
+      if (n) n.remove();
     }
 
     /* ===== PUBLIC ===== */
@@ -990,8 +990,9 @@
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoNode($.mhHomeLogo, ev.home_team, null);
-      setLogoNode($.mhAwayLogo, ev.away_team, null);
+
+      $.mhHomeLogo.textContent = (ev.home_team || "H").slice(0,1).toUpperCase();
+      $.mhAwayLogo.textContent = (ev.away_team || "A").slice(0,1).toUpperCase();
 
       setMode("OPEN");
       openModal();
@@ -1036,16 +1037,8 @@
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", ()=>{
         if (btn.classList.contains("hidden")) return;
-
         setMode(btn.dataset.mode);
-
-        addBettyBubble(
-          btn.dataset.mode === "TOTALS" ? "Modalità Under/Over attiva. Vuoi una linea specifica? (2.5 / 3.5)"
-          : btn.dataset.mode === "BTTS" ? "Modalità Gol/NoGol attiva."
-          : btn.dataset.mode === "EXACT" ? "Modalità Risultato Esatto attiva."
-          : btn.dataset.mode === "SCORER" ? "Modalità Marcatore attiva."
-          : "Modalità Analisi attiva. Fammi una domanda libera."
-        );
+        addBettyBubble("Ok 👍 Dimmi cosa vuoi sapere su questo mercato.");
       });
     });
 
@@ -1092,15 +1085,6 @@
         dbgWrite({ ping:"football-hub /", ok });
       }catch(e){
         dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-
-    $.pingBettyProxy.addEventListener("click", async ()=>{
-      try{
-        const res = await postJson(ODDS_BASE + "/betty-chat", { ping:true });
-        dbgWrite({ ping:"proxy betty via get-odds /betty-chat", res });
-      }catch(e){
-        dbgWrite({ ping:"proxy betty via get-odds /betty-chat", error:String(e.message||e), debug:e._debug || null });
       }
     });
 
