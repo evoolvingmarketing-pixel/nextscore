@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NextScore — Match Center (Light)</title>
+  <title>NextScore — Match Center</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text y='50' font-size='50'>⚡</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
@@ -68,8 +68,6 @@
       overflow:hidden;
       flex:0 0 auto;
     }
-    .tlogo.sm{ width:26px; height:26px; }
-    .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
     .tlogo.fallback{
       font-weight:900;
       color:#0f172a;
@@ -163,11 +161,17 @@
       font-weight:900;
       margin-bottom:2px;
     }
+
     .microTabs{
       display:flex;
       gap:8px;
       padding:10px 14px 0 14px;
       flex-wrap:wrap;
+      border-bottom: 1px solid rgba(2,6,23,.06);
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
     .tabBtn{
       border-radius:999px;
@@ -218,18 +222,13 @@
 <body>
   <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
     <header class="flex items-start md:items-center justify-between gap-4 mb-6">
-      <div class="flex items-start gap-3">
-        <div id="leagueLogoTop" class="tlogo sm fallback" title="Campionato">🏆</div>
-
-        <div>
-          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
-            NextScore <span class="text-amber-600">Match Center</span>
-          </h1>
-          <p class="text-sm md:text-base text-slate-600 mt-1">
-            Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-            <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
-          </p>
-        </div>
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          NextScore <span class="text-amber-600">Match Center</span>
+        </h1>
+        <p class="text-sm md:text-base text-slate-600 mt-1">
+          Seleziona un match e leggi l’analisi AI sui mercati principali.
+        </p>
       </div>
 
       <div class="text-xs text-slate-500 text-right">
@@ -283,8 +282,6 @@
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <span class="chip" id="chipCount">match: —</span>
           <span class="chip" id="chipMode">modalità: live</span>
-          <span class="chip">stile: light premium</span>
-          <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
         </div>
       </div>
@@ -297,18 +294,15 @@
     <section id="cards" class="mt-5 grid gap-4 md:grid-cols-2"></section>
   </div>
 
+  <!-- CHAT MODAL -->
   <div id="modalOverlay" class="modalOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Chat Betty">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Chat AI">
       <div class="modalHeader">
         <div class="flex items-center gap-3">
           <div class="avatar" aria-hidden="true">🧙‍♀️</div>
 
           <div class="flex flex-col gap-1">
-            <div class="text-sm font-extrabold leading-tight flex items-center gap-2">
-              <span>Betty</span>
-              <span class="chip" id="leagueChip" style="padding:6px 10px;">—</span>
-              <span id="leagueLogoInModal" class="tlogo sm fallback" title="Campionato">🏆</span>
-            </div>
+            <div class="text-sm font-extrabold leading-tight">Pronostico AI</div>
 
             <div class="flex items-center gap-2">
               <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
@@ -325,12 +319,24 @@
         <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
       </div>
 
-      <div class="microTabs">
-        <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
-        <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
-        <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
-        <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
-        <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
+      <!-- MERCATI (BOTTONI) -->
+      <div class="microTabs" id="marketsBar">
+        <button class="tabBtn active" data-mode="OPEN">Analisi</button>
+        <button class="tabBtn" data-mode="TOTALS">Under/Over</button>
+        <button class="tabBtn" data-mode="BTTS">Gol/NoGol</button>
+        <button class="tabBtn" data-mode="EXACT">Risultato Esatto</button>
+        <button class="tabBtn" data-mode="SCORER">Marcatore</button>
+
+        <!-- extra mercati -->
+        <button class="tabBtn" data-mode="OVER15">Over 1.5</button>
+        <button class="tabBtn" data-mode="OVER25">Over 2.5</button>
+        <button class="tabBtn" data-mode="OVER35">Over 3.5</button>
+        <button class="tabBtn" data-mode="FIRST_HALF">Primo Tempo</button>
+        <button class="tabBtn" data-mode="HTFT">1T/FT</button>
+        <button class="tabBtn" data-mode="DNB">DNB</button>
+        <button class="tabBtn" data-mode="DC">Doppia Chance</button>
+        <button class="tabBtn" data-mode="CARDS">Cartellini</button>
+        <button class="tabBtn" data-mode="CORNERS">Calci d’angolo</button>
       </div>
 
       <div class="modalBody">
@@ -346,11 +352,14 @@
   </div>
 
   <script>
+    /* ===== CONFIG ===== */
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // fallback
+
     const MAX_COUNT = 100;
 
+    /* ===== DEMO DATA (fallback) ===== */
     function buildDemoEvents(){
       const now = Date.now();
       const mk = (id, home, away, mins) => ({
@@ -359,12 +368,12 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name:"Home", prob: null, odds: 1.90 },
-          { name:"Draw", prob: null, odds: 3.40 },
-          { name:"Away", prob: null, odds: 4.20 },
+          { name:"Home", prob: 48.5, odds: null },
+          { name:"Draw", prob: 26.0, odds: null },
+          { name:"Away", prob: 25.5, odds: null },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] }
+          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
         ],
       });
       return [
@@ -375,6 +384,7 @@
       ];
     }
 
+    /* ===== DOM ===== */
     const el = (id) => document.getElementById(id);
     const $ = {
       rate: el("rateInfo"),
@@ -399,22 +409,14 @@
       sendBtn: el("sendBtn"),
 
       tabBtns: Array.from(document.querySelectorAll(".tabBtn")),
-      tabOPEN: el("tabOPEN"),
-      tabTOTALS: el("tabTOTALS"),
-      tabBTTS: el("tabBTTS"),
-      tabEXACT: el("tabEXACT"),
-      tabSCORER: el("tabSCORER"),
 
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
-
-      leagueLogoTop: el("leagueLogoTop"),
-      leagueLogoInModal: el("leagueLogoInModal"),
-      leagueChip: el("leagueChip"),
     };
 
+    /* ===== STATE ===== */
     let lastData = [];
     let currentEvent = null;
     let currentMode = "OPEN";
@@ -424,11 +426,7 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    // cache loghi
-    const teamLogoCache = new Map();    // key: teamName -> url
-    const leagueLogoCache = new Map();  // key: sportKey -> url
-    const leagueNameCache = new Map();  // key: sportKey -> string
-
+    /* ===== HELPERS ===== */
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -453,12 +451,30 @@
     function isSoccerSportKey(sk){
       return /^soccer_/i.test(String(sk||""));
     }
-
+    function bestOutcome(outcomes=[]){
+      return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
+    }
+    function toItOutcome(name=""){
+      return /draw/i.test(name) ? "Pareggio" : /home/i.test(name) ? "Casa" : /away/i.test(name) ? "Trasferta" : name;
+    }
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
+
+    function emptyState(msg){
+      return `
+        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
+          ${esc(msg)}
+        </div>
+      `;
+    }
+
+    function safeJson(obj){
+      const s = JSON.stringify(obj || {});
+      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+    }
 
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
@@ -473,58 +489,25 @@
       return json ?? txt;
     }
 
-    function teamFallbackAvatarUrl(teamName){
-      const name = String(teamName || "").trim();
-      if (!name) return null;
-      const q = encodeURIComponent(name);
-      return `https://ui-avatars.com/api/?name=${q}&background=fff7ed&color=0f172a&rounded=true&bold=true&size=64`;
+    function setLogoFallback(node, teamName){
+      node.classList.add("fallback");
+      node.textContent = (teamName||"?").slice(0,1).toUpperCase();
     }
 
-    function setLogoNode(node, label, logoUrl){
-      node.classList.remove("fallback");
-      node.innerHTML = "";
-
-      if (!logoUrl){
-        node.classList.add("fallback");
-        node.textContent = (label||"?").slice(0,1).toUpperCase();
-        return;
-      }
-
-      const img = document.createElement("img");
-      img.alt = label || "logo";
-      img.src = logoUrl;
-      img.loading = "lazy";
-      img.referrerPolicy = "no-referrer";
-      img.onerror = () => {
-        node.innerHTML = "";
-        node.classList.add("fallback");
-        node.textContent = (label||"?").slice(0,1).toUpperCase();
-      };
-      node.appendChild(img);
-    }
-
-    function setLeagueLogoForUI(sportKey){
-      const url = leagueLogoCache.get(sportKey) || null;
-      const name = leagueNameCache.get(sportKey) || sportKey;
-
-      $.leagueChip.textContent = name || "—";
-      setLogoNode($.leagueLogoTop, "🏆", url);
-      setLogoNode($.leagueLogoInModal, "🏆", url);
-    }
-
-    /* ===== CHAT UI ===== */
+    /* ===== CHAT UI HELPERS ===== */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
+            <div class="miniName">AI</div>
             <div class="bubble bubbleBetty">${esc(text)}</div>
           </div>
         </div>
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
+
     function addWarn(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -535,6 +518,7 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
+
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -543,13 +527,14 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
+
     function addThinking(){
       const id = "t_" + Math.random().toString(36).slice(2);
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div id="${id}" class="bubbleRow">
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">Betty</div>
+            <div class="miniName">AI</div>
             <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
           </div>
         </div>
@@ -562,94 +547,7 @@
       if (n) n.remove();
     }
 
-    /* ===== ODDS NORMALIZATION ===== */
-    function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
-      const list = Array.isArray(bookmakers) ? bookmakers : [];
-      let best = null;
-
-      for (const bm of list){
-        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
-        const m = markets.find(x => x?.key === marketKey);
-        if (!m) continue;
-
-        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
-        const o = outcomes.find(x => String(x?.name || "").toLowerCase() === String(outcomeName).toLowerCase());
-        const price = o?.price;
-
-        if (typeof price === "number" && price > 0){
-          if (best == null || price > best) best = price;
-        }
-      }
-      return best;
-    }
-    function bestTotalForPoint(bookmakers, point, overOrUnder){
-      const list = Array.isArray(bookmakers) ? bookmakers : [];
-      let best = null;
-
-      for (const bm of list){
-        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
-        const m = markets.find(x => x?.key === "totals");
-        if (!m) continue;
-
-        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
-        const o = outcomes.find(x =>
-          String(x?.name || "").toLowerCase() === String(overOrUnder).toLowerCase()
-          && Number(x?.point) === Number(point)
-        );
-
-        const price = o?.price;
-        if (typeof price === "number" && price > 0){
-          if (best == null || price > best) best = price;
-        }
-      }
-      return best;
-    }
-    function normalizeOddsEvent(ev){
-      const home = ev?.home_team;
-      const away = ev?.away_team;
-      const bms = ev?.bookmakers;
-
-      const qHome = bestOddsFromBookmakers(bms, "h2h", home);
-      const qAway = bestOddsFromBookmakers(bms, "h2h", away);
-      const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
-
-      let line = null;
-      outer: for (const bm of (Array.isArray(bms) ? bms : [])){
-        for (const m of (Array.isArray(bm?.markets) ? bm.markets : [])){
-          if (m?.key !== "totals") continue;
-          const outs = Array.isArray(m?.outcomes) ? m.outcomes : [];
-          const first = outs.find(x => typeof x?.point === "number");
-          if (first){
-            line = first.point;
-            break outer;
-          }
-        }
-      }
-
-      const qOver = (line != null) ? bestTotalForPoint(bms, line, "Over") : null;
-      const qUnder = (line != null) ? bestTotalForPoint(bms, line, "Under") : null;
-
-      return {
-        id: ev?.id,
-        commence_time: ev?.commence_time,
-        home_team: home,
-        away_team: away,
-        outcomes: [
-          { name:"Home", prob: null, odds: qHome },
-          { name:"Draw", prob: null, odds: qDraw },
-          { name:"Away", prob: null, odds: qAway },
-        ],
-        totals: (line != null) ? [
-          { point: line, outcomes: [
-            { name:"Over", prob: null, odds: qOver },
-            { name:"Under", prob: null, odds: qUnder },
-          ]}
-        ] : [],
-        _raw: ev
-      };
-    }
-
-    /* ===== API ===== */
+    /* ===== API (Odds list) ===== */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -659,7 +557,7 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals");
+      url.searchParams.set("markets", "h2h,totals,btts"); // include btts se disponibile nel proxy
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
@@ -669,6 +567,7 @@
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
+    /* ===== API (Football HUB context) ===== */
     async function hubResolve(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
       url.searchParams.set("home", home);
@@ -676,70 +575,19 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
+
     async function hubContextByFixtureKey(fixtureKey){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("fixture_key", String(fixtureKey));
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
+
     async function hubContextByTeams(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("home", home);
       url.searchParams.set("away", away);
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
-    }
-
-    function pickFirstString(obj, paths){
-      for (const p of paths){
-        try{
-          const parts = p.split(".");
-          let cur = obj;
-          for (const k of parts){
-            if (cur == null) { cur = null; break; }
-            cur = cur[k];
-          }
-          if (typeof cur === "string" && cur.trim()) return cur.trim();
-        }catch{}
-      }
-      return null;
-    }
-
-    function harvestLogosFromBundle(bundle, sportKey, homeName, awayName){
-      // prova a trovare loghi in vari possibili posti
-      const ctx = bundle?.context || null;
-      const ctx2 = bundle?.context?.context || null;
-      const res = bundle?.resolve || null;
-
-      const homeLogo =
-        pickFirstString(ctx2, ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]) ||
-        pickFirstString(ctx,  ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]) ||
-        pickFirstString(res,  ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]);
-
-      const awayLogo =
-        pickFirstString(ctx2, ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]) ||
-        pickFirstString(ctx,  ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]) ||
-        pickFirstString(res,  ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]);
-
-      const leagueLogo =
-        pickFirstString(ctx2, ["league.logo","competition.logo","tournament.logo","leagueLogo"]) ||
-        pickFirstString(ctx,  ["league.logo","competition.logo","tournament.logo","leagueLogo"]) ||
-        pickFirstString(res,  ["league.logo","competition.logo","tournament.logo","leagueLogo"]);
-
-      const leagueName =
-        pickFirstString(ctx2, ["league.name","competition.name","tournament.name","league"]) ||
-        pickFirstString(ctx,  ["league.name","competition.name","tournament.name","league"]) ||
-        pickFirstString(res,  ["league.name","competition.name","tournament.name","league"]);
-
-      if (homeName){
-        if (homeLogo) teamLogoCache.set(homeName, homeLogo);
-      }
-      if (awayName){
-        if (awayLogo) teamLogoCache.set(awayName, awayLogo);
-      }
-      if (sportKey){
-        if (leagueLogo) leagueLogoCache.set(sportKey, leagueLogo);
-        if (leagueName) leagueNameCache.set(sportKey, leagueName);
-      }
     }
 
     async function getContextBundleForEvent(ev){
@@ -782,21 +630,11 @@
       return bundle;
     }
 
-    function emptyState(msg){
-      return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
-          ${esc(msg)}
-        </div>
-      `;
-    }
-
+    /* ===== LOAD EVENTS ===== */
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
       hideNotice();
-
-      // aggiorna subito UI campionato con eventuale cache
-      setLeagueLogoForUI(chosenSport());
 
       try{
         const data = await fetchEvents();
@@ -819,9 +657,7 @@
 
         setDemoMode(false);
 
-        const rawEvents = Array.isArray(data?.data) ? data.data : [];
-        lastData = rawEvents.map(normalizeOddsEvent);
-
+        lastData = data.events || [];
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
         if (!lastData.length){
@@ -832,10 +668,8 @@
 
         renderCards(lastData);
         $.status.textContent = "stato: ok";
-
-        // prefetch loghi per i primi 12 match
-        prefetchLogosForEvents(lastData.slice(0,12)).catch(()=>{});
       }catch(e){
+        console.error(e);
         showNotice(`❌ get-odds fallito: ${String(e?.message || e)}.`);
         setDemoMode(true);
         lastData = buildDemoEvents();
@@ -845,53 +679,23 @@
       }
     }
 
-    async function prefetchLogosForEvents(events){
-      const sportKey = chosenSport();
-
-      for (const ev of events){
-        try{
-          const bundle = await getContextBundleForEvent(ev);
-          if (!bundle) continue;
-
-          harvestLogosFromBundle(bundle, sportKey, ev.home_team, ev.away_team);
-          setLeagueLogoForUI(sportKey);
-
-          const hUrl = teamLogoCache.get(ev.home_team) || null;
-          const aUrl = teamLogoCache.get(ev.away_team) || null;
-
-          const hNode = document.querySelector(`[data-teamlogo="home:${ev.id}"]`);
-          const aNode = document.querySelector(`[data-teamlogo="away:${ev.id}"]`);
-
-          if (hNode) setLogoNode(hNode, ev.home_team, hUrl || teamFallbackAvatarUrl(ev.home_team));
-          if (aNode) setLogoNode(aNode, ev.away_team, aUrl || teamFallbackAvatarUrl(ev.away_team));
-        }catch{}
-      }
-    }
-
+    /* ===== RENDER CARDS ===== */
     function renderCards(events){
       $.cards.innerHTML = events.map(renderCard).join("");
-
-      // fallback immediato: avatar “carino” finché non arrivano i loghi reali
-      for (const ev of events){
-        const hNode = document.querySelector(`[data-teamlogo="home:${ev.id}"]`);
-        const aNode = document.querySelector(`[data-teamlogo="away:${ev.id}"]`);
-        if (hNode) setLogoNode(hNode, ev.home_team, teamFallbackAvatarUrl(ev.home_team));
-        if (aNode) setLogoNode(aNode, ev.away_team, teamFallbackAvatarUrl(ev.away_team));
-      }
-    }
-
-    function safeJson(obj){
-      const s = JSON.stringify(obj || {});
-      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
 
     function renderCard(ev){
+      const pick = bestOutcome(ev.outcomes || []);
       const when = fmtDate(ev.commence_time);
+
       const h = esc(ev.home_team||"");
       const a = esc(ev.away_team||"");
+      const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
+      const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
       const totals = Array.isArray(ev.totals) ? ev.totals : [];
+      const btts = ev?.btts?.outcomes ? ev.btts.outcomes : null;
 
       const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
       const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
@@ -902,10 +706,13 @@
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
 
-      const pill = (v)=> (typeof v === "number" ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
+      const qYes = btts?.find(x=>/yes/i.test(x.name))?.odds ?? null;
+      const qNo  = btts?.find(x=>/no/i.test(x.name))?.odds ?? null;
+
+      const pill = (v)=> (v || v === 0) ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`;
 
       return `
-        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
+        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
@@ -917,16 +724,16 @@
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
-            <div class="tlogo" data-teamlogo="home:${esc(ev.id)}" title="${h}">H</div>
+            <div class="tlogo fallback" title="${h}">${hInitial}</div>
             <div class="text-sm font-extrabold text-slate-900">${h}</div>
             <span class="vsPill">VS</span>
-            <div class="tlogo" data-teamlogo="away:${esc(ev.id)}" title="${a}">A</div>
+            <div class="tlogo fallback" title="${a}">${aInitial}</div>
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
           <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (best)</div>
               <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
@@ -936,19 +743,38 @@
               <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
               <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote migliori per bookmaker (proxy).</div>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Gol/NoGol (se disponibile)</div>
+              <div class="flex items-center justify-between text-sm"><span>Gol</span>${pill(qYes)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>NoGol</span>${pill(qNo)}</div>
+              <div class="text-[12px] text-slate-500 mt-2">Se vedi “—” il mercato non arriva dal proxy.</div>
+            </div>
+
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Previsione rapida</div>
+              <div class="text-sm text-slate-700">
+                <span class="font-extrabold text-slate-900">Esito:</span>
+                ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
+              </div>
+              <div class="text-[12px] text-slate-500 mt-2">Apri la chat per l’analisi completa.</div>
             </div>
           </div>
 
           <div class="mt-4 flex items-center justify-end">
             <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
-              Leggi il Pronostico di Betty🧙‍♀️
+              Leggi il pronostico AI 🧙‍♀️
             </button>
           </div>
         </article>
       `;
     }
 
+    /* ===== MODAL ===== */
     function openModal(){
       $.overlay.classList.add("show");
       $.overlay.setAttribute("aria-hidden","false");
@@ -971,10 +797,18 @@
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
-      $.tabBTTS.classList.toggle("hidden", !soccer);
-      $.tabEXACT.classList.toggle("hidden", !soccer);
-      $.tabSCORER.classList.toggle("hidden", !soccer);
-      $.tabTOTALS.classList.remove("hidden");
+
+      // soccer-only
+      const byMode = (m)=> $.tabBtns.find(x=>x.dataset.mode===m);
+      const btts = byMode("BTTS");
+      const exact = byMode("EXACT");
+      const scorer = byMode("SCORER");
+      const htft = byMode("HTFT");
+
+      if (btts) btts.classList.toggle("hidden", !soccer);
+      if (exact) exact.classList.toggle("hidden", !soccer);
+      if (scorer) scorer.classList.toggle("hidden", !soccer);
+      if (htft) htft.classList.toggle("hidden", !soccer);
 
       const active = $.tabBtns.find(b=>b.classList.contains("active"));
       if (active && active.classList.contains("hidden")){
@@ -982,32 +816,31 @@
       }
     }
 
-    function buildStrongMarketRequest(mode, ev){
-      const line = ev?.totals?.[0]?.point ?? null;
-      const hasLine = (typeof line === "number");
-
-      if (mode === "TOTALS"){
-        return hasLine
-          ? `Dammi SUBITO una previsione Under/Over sulla linea ${line}. Scegli una sola giocata principale (Over o Under) e motivala con 3 punti (quote + contesto). Poi proponi una giocata alternativa più prudente.`
-          : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
-      }
-      if (mode === "BTTS"){
-        return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
-      }
-      if (mode === "EXACT"){
-        return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
-      }
-      if (mode === "SCORER"){
-        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
-      }
-      return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
-    }
-
+    /* ===== BETTY CALL ===== */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
       const ctxNote = hasCtx
-        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
+        ? "Hai un CONTEXTO dati. Usalo."
         : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
+
+      const modeRuleMap = {
+        OPEN: "Analisi: sintetica ma motivata. Se un dato non c’è, dichiaralo.",
+        TOTALS: "Under/Over: usa linea e quote disponibili; dai una previsione e motivazione.",
+        BTTS: "Gol/NoGol: usa trend se presente nel contesto; altrimenti basati su quote e spiega prudenza.",
+        EXACT: "Risultato esatto: proponi 1–2 score plausibili, con motivazione e rischio.",
+        SCORER: "Marcatore: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo.",
+        OVER15: "Over 1.5: restituisci previsione e motivazione, e livello di rischio.",
+        OVER25: "Over 2.5: restituisci previsione e motivazione, e livello di rischio.",
+        OVER35: "Over 3.5: restituisci previsione e motivazione, e livello di rischio.",
+        FIRST_HALF: "Primo tempo: previsione su esito/goal nel 1T se possibile; altrimenti prudente.",
+        HTFT: "1T/FT: fornisci 1 scenario principale e 1 alternativo, spiegando la logica.",
+        DNB: "DNB: suggerisci quale squadra ha più valore e perché.",
+        DC: "Doppia chance: indica la doppia più coerente e motivala.",
+        CARDS: "Cartellini: se non hai contesto specifico, fallo prudente e dichiaralo.",
+        CORNERS: "Calci d’angolo: se non hai contesto specifico, fallo prudente e dichiaralo."
+      };
+
+      const modeRule = modeRuleMap[mode] || "Mercato: dai previsione + motivazione. Se un dato manca, dichiaralo.";
 
       return [
         "REGOLA ASSOLUTA:",
@@ -1015,15 +848,10 @@
         "- Usa SOLO ciò che trovi in `context` quando presente.",
         "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
         "",
-        "OBBLIGO DI OUTPUT:",
-        "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
-        "- Devi dare SUBITO una previsione completa per il mercato richiesto.",
-        "- Struttura: (1) Giocata principale + motivazione breve (2) Alternativa prudente (3) Livello fiducia (basso/medio/alto).",
-        "- Chiudi SEMPRE con 1 domanda breve per far continuare l'utente (es. 'Vuoi anche 1X2 o Risultato Esatto?').",
-        "",
         ctxNote,
+        modeRule,
         "",
-        "RICHIESTA UTENTE:",
+        "UTENTE:",
         userText || ""
       ].join("\n");
     }
@@ -1069,16 +897,39 @@
         sport: sportKey
       };
 
-      try{
-        const data = await postJson(BETTY_BASE + "/chat", payload);
-        const text = extractBettyText(data);
-        if (!text) throw new Error("Risposta vuota da Betty");
-        return text;
-      }catch(e){
-        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
+      const tries = [
+        { name:"proxy(get-odds)/betty-chat", url: ODDS_BASE + "/betty-chat" },
+        { name:"betty-direct/chat", url: BETTY_BASE + "/chat" },
+        { name:"betty-direct/betty-chat", url: BETTY_BASE + "/betty-chat" },
+      ];
+
+      let lastErr = null;
+
+      for (const t of tries){
+        try{
+          const data = await postJson(t.url, payload);
+          const text = extractBettyText(data);
+          if (!text) throw new Error(`Risposta vuota da ${t.name}`);
+          return text;
+        }catch(e){
+          lastErr = e;
+          continue;
+        }
       }
+
+      return `⚠️ Errore chiamata AI.\nDettaglio: ${String(lastErr?.message || lastErr)}`;
     }
 
+    async function runMarketPrediction(){
+      const th = addThinking();
+      const ans = await askBetty("MARKET_PREDICTION");
+      removeThinking(th);
+
+      addBettyBubble(ans);
+      chatHistory.push({ role:"assistant", content: ans });
+    }
+
+    /* ===== PUBLIC ===== */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -1087,18 +938,14 @@
       const sportKey = chosenSport();
       setTabsForSport(sportKey);
 
-      setLeagueLogoForUI(sportKey);
-
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
       $.chatSub.textContent = fmtDate(ev.commence_time);
       $.chatFeed.innerHTML = "";
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-
-      // fallback subito (avatar) in header
-      setLogoNode($.mhHomeLogo, ev.home_team, teamFallbackAvatarUrl(ev.home_team));
-      setLogoNode($.mhAwayLogo, ev.away_team, teamFallbackAvatarUrl(ev.away_team));
+      setLogoFallback($.mhHomeLogo, ev.home_team);
+      setLogoFallback($.mhAwayLogo, ev.away_team);
 
       setMode("OPEN");
       openModal();
@@ -1110,69 +957,45 @@
         const bundle = await getContextBundleForEvent(ev);
         currentContextBundle = bundle;
 
-        // prova ad estrarre loghi reali
-        harvestLogosFromBundle(bundle, sportKey, ev.home_team, ev.away_team);
-        setLeagueLogoForUI(sportKey);
-
-        const hReal = teamLogoCache.get(ev.home_team) || null;
-        const aReal = teamLogoCache.get(ev.away_team) || null;
-
-        if (hReal) setLogoNode($.mhHomeLogo, ev.home_team, hReal);
-        if (aReal) setLogoNode($.mhAwayLogo, ev.away_team, aReal);
-
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
-          addBettyBubble("Perfetto ✅ Contesto agganciato.");
+          addBettyBubble("Perfetto ✅ Contesto agganciato. Parto con l’analisi.");
         }else{
           $.chipContext.textContent = "context: NO";
-          addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
+          addWarn(`Contesto non disponibile (${bundle?.reason || "unknown"}). Farò una lettura prudente basata sulle quote.`);
         }
       }catch(err){
+        console.error(err);
         $.chipContext.textContent = "context: NO";
-        addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
+        addWarn("Errore aggancio contesto. Farò una lettura prudente basata sulle quote.");
       }
 
-      const th = addThinking();
-      const opening = await askBetty("Dammi SUBITO una analisi completa e una previsione principale + alternativa prudente.");
-      removeThinking(th);
-
-      addBettyBubble(opening);
-      chatHistory.push({ role:"assistant", content: opening });
+      await runMarketPrediction();
     }
 
+    /* ===== UI EVENTS ===== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
       const custom = $.sport.value === "custom";
       $.sportCustom.classList.toggle("hidden", !custom);
       if (custom) $.sportCustom.focus();
-
-      // aggiorna subito logo lega con cache (se c'è)
-      setLeagueLogoForUI(chosenSport());
     });
 
+    // 👉 click sui mercati: fa SUBITO previsione (non “modalità attiva”)
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
 
         setMode(btn.dataset.mode);
 
+        // Se non c’è match selezionato, non spammare
         if (!currentEvent){
-          addBettyBubble("Seleziona un match 😊");
+          addBettyBubble("Seleziona prima un match 😊");
           return;
         }
 
-        const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
-
-        addUserBubble(btn.textContent);
-        chatHistory.push({ role:"user", content: strong });
-
-        const th = addThinking();
-        const ans = await askBetty(strong);
-        removeThinking(th);
-
-        addBettyBubble(ans);
-        chatHistory.push({ role:"assistant", content: ans });
+        await runMarketPrediction();
       });
     });
 
@@ -1203,8 +1026,7 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
-    // init
-    setLeagueLogoForUI(chosenSport());
+    /* ===== INIT ===== */
     load();
   </script>
 </body>
