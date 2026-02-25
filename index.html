@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NextScore — Match Center</title>
+  <title>NextScore — Match Center (Light)</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text y='50' font-size='50'>⚡</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
@@ -68,6 +68,7 @@
       overflow:hidden;
       flex:0 0 auto;
     }
+    .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
     .tlogo.fallback{
       font-weight:900;
       color:#0f172a;
@@ -161,17 +162,11 @@
       font-weight:900;
       margin-bottom:2px;
     }
-
     .microTabs{
       display:flex;
       gap:8px;
       padding:10px 14px 0 14px;
       flex-wrap:wrap;
-      border-bottom: 1px solid rgba(2,6,23,.06);
-      background: #fff;
-      position: sticky;
-      top: 0;
-      z-index: 2;
     }
     .tabBtn{
       border-radius:999px;
@@ -212,6 +207,27 @@
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
+    .dbg{
+      border:1px dashed rgba(2,6,23,.18);
+      border-radius:16px;
+      padding:12px;
+      background:#fff;
+    }
+    .dbg pre{
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-size:12px;
+      line-height:1.35;
+      color:#0f172a;
+      max-height:220px;
+      overflow:auto;
+      margin-top:8px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(2,6,23,.10);
+      background:#f8fafc;
+    }
+
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
@@ -227,7 +243,8 @@
           NextScore <span class="text-amber-600">Match Center</span>
         </h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
-          Seleziona un match e leggi l’analisi AI sui mercati principali.
+          Seleziona un match e leggi l’analisi di <strong>Betty</strong>
+          <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
         </p>
       </div>
 
@@ -236,6 +253,21 @@
         <div id="statusInfo">stato: pronto</div>
       </div>
     </header>
+
+    <section class="dbg mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-sm font-extrabold">Debug rapido</div>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn" id="pingOdds">Ping get-odds</button>
+          <button class="btn" id="pingHub">Ping football-hub</button>
+          <button class="btn" id="pingBettyDirect">Ping betty diretto</button>
+        </div>
+      </div>
+      <pre id="dbgOut">—</pre>
+      <div class="text-[12px] text-slate-500 mt-2">
+        Se vedi errori CORS o “Failed to fetch”, il problema è l’origin (file:// o dominio non autorizzato).
+      </div>
+    </section>
 
     <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
       <div class="p-4 md:p-5">
@@ -282,6 +314,8 @@
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <span class="chip" id="chipCount">match: —</span>
           <span class="chip" id="chipMode">modalità: live</span>
+          <span class="chip">stile: light premium</span>
+          <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
         </div>
       </div>
@@ -294,15 +328,14 @@
     <section id="cards" class="mt-5 grid gap-4 md:grid-cols-2"></section>
   </div>
 
-  <!-- CHAT MODAL -->
   <div id="modalOverlay" class="modalOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Chat AI">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Chat Betty">
       <div class="modalHeader">
         <div class="flex items-center gap-3">
           <div class="avatar" aria-hidden="true">🧙‍♀️</div>
 
           <div class="flex flex-col gap-1">
-            <div class="text-sm font-extrabold leading-tight">Pronostico AI</div>
+            <div class="text-sm font-extrabold leading-tight">Betty</div>
 
             <div class="flex items-center gap-2">
               <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
@@ -319,22 +352,12 @@
         <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
       </div>
 
-      <div class="microTabs" id="marketsBar">
-        <button class="tabBtn active" data-mode="OPEN">Analisi</button>
-        <button class="tabBtn" data-mode="TOTALS">Under/Over</button>
-        <button class="tabBtn" data-mode="BTTS">Gol/NoGol</button>
-        <button class="tabBtn" data-mode="EXACT">Risultato Esatto</button>
-        <button class="tabBtn" data-mode="SCORER">Marcatore</button>
-
-        <button class="tabBtn" data-mode="OVER15">Over 1.5</button>
-        <button class="tabBtn" data-mode="OVER25">Over 2.5</button>
-        <button class="tabBtn" data-mode="OVER35">Over 3.5</button>
-        <button class="tabBtn" data-mode="FIRST_HALF">Primo Tempo</button>
-        <button class="tabBtn" data-mode="HTFT">1T/FT</button>
-        <button class="tabBtn" data-mode="DNB">DNB</button>
-        <button class="tabBtn" data-mode="DC">Doppia Chance</button>
-        <button class="tabBtn" data-mode="CARDS">Cartellini</button>
-        <button class="tabBtn" data-mode="CORNERS">Calci d’angolo</button>
+      <div class="microTabs">
+        <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
+        <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
+        <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
+        <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
+        <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
       </div>
 
       <div class="modalBody">
@@ -353,7 +376,6 @@
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
     const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
-
     const MAX_COUNT = 100;
 
     function buildDemoEvents(){
@@ -364,12 +386,12 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name:"Home", prob: 48.5, odds: null },
-          { name:"Draw", prob: 26.0, odds: null },
-          { name:"Away", prob: 25.5, odds: null },
+          { name:"Home", prob: null, odds: 1.90 },
+          { name:"Draw", prob: null, odds: 3.40 },
+          { name:"Away", prob: null, odds: 4.20 },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:null}, {name:"Under", prob:48.0, odds:null} ] }
+          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] }
         ],
       });
       return [
@@ -404,11 +426,21 @@
       sendBtn: el("sendBtn"),
 
       tabBtns: Array.from(document.querySelectorAll(".tabBtn")),
+      tabOPEN: el("tabOPEN"),
+      tabTOTALS: el("tabTOTALS"),
+      tabBTTS: el("tabBTTS"),
+      tabEXACT: el("tabEXACT"),
+      tabSCORER: el("tabSCORER"),
 
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
+
+      dbgOut: el("dbgOut"),
+      pingOdds: el("pingOdds"),
+      pingHub: el("pingHub"),
+      pingBettyDirect: el("pingBettyDirect"),
     };
 
     let lastData = [];
@@ -444,31 +476,23 @@
     function isSoccerSportKey(sk){
       return /^soccer_/i.test(String(sk||""));
     }
-    function bestOutcome(outcomes=[]){
-      return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
-    }
-    function toItOutcome(name=""){
-      return /draw/i.test(name) ? "Pareggio" : /home/i.test(name) ? "Casa" : /away/i.test(name) ? "Trasferta" : name;
-    }
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
 
-    function emptyState(msg){
-      return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
-          ${esc(msg)}
-        </div>
-      `;
-    }
-
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
-
+    function dbgWrite(obj){
+      try{
+        $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
+      }catch{
+        $.dbgOut.textContent = String(obj);
+      }
+    }
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
       const txt = await r.text().catch(()=> "");
@@ -482,9 +506,34 @@
       return json ?? txt;
     }
 
-    function setLogoFallback(node, teamName){
-      node.classList.add("fallback");
-      node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+    function teamLogoUrl(teamName){
+      const name = String(teamName || "").trim();
+      if (!name) return null;
+      const q = encodeURIComponent(name);
+      return `https://ui-avatars.com/api/?name=${q}&background=fff7ed&color=0f172a&rounded=true&bold=true&size=64`;
+    }
+    function setLogoNode(node, teamName, logoUrl){
+      node.classList.remove("fallback");
+      node.innerHTML = "";
+      const url = logoUrl || teamLogoUrl(teamName);
+
+      if (!url){
+        node.classList.add("fallback");
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+        return;
+      }
+
+      const img = document.createElement("img");
+      img.alt = teamName || "logo";
+      img.src = url;
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = () => {
+        node.innerHTML = "";
+        node.classList.add("fallback");
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+      };
+      node.appendChild(img);
     }
 
     function addBettyBubble(text){
@@ -492,7 +541,7 @@
         <div class="bubbleRow">
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">AI</div>
+            <div class="miniName">Betty</div>
             <div class="bubble bubbleBetty">${esc(text)}</div>
           </div>
         </div>
@@ -523,7 +572,7 @@
         <div id="${id}" class="bubbleRow">
           <div class="avatar" aria-hidden="true" style="width:30px;height:30px;font-size:16px;">🧙‍♀️</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
-            <div class="miniName">AI</div>
+            <div class="miniName">Betty</div>
             <div class="bubble bubbleBetty" style="opacity:.75;font-style:italic;">Sto pensando…</div>
           </div>
         </div>
@@ -536,7 +585,92 @@
       if (n) n.remove();
     }
 
-    /* ===== API (Odds list) ===== */
+    function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      let best = null;
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === marketKey);
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        const o = outcomes.find(x => String(x?.name || "").toLowerCase() === String(outcomeName).toLowerCase());
+        const price = o?.price;
+
+        if (typeof price === "number" && price > 0){
+          if (best == null || price > best) best = price;
+        }
+      }
+      return best;
+    }
+    function bestTotalForPoint(bookmakers, point, overOrUnder){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      let best = null;
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === "totals");
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        const o = outcomes.find(x =>
+          String(x?.name || "").toLowerCase() === String(overOrUnder).toLowerCase()
+          && Number(x?.point) === Number(point)
+        );
+
+        const price = o?.price;
+        if (typeof price === "number" && price > 0){
+          if (best == null || price > best) best = price;
+        }
+      }
+      return best;
+    }
+    function normalizeOddsEvent(ev){
+      const home = ev?.home_team;
+      const away = ev?.away_team;
+      const bms = ev?.bookmakers;
+
+      const qHome = bestOddsFromBookmakers(bms, "h2h", home);
+      const qAway = bestOddsFromBookmakers(bms, "h2h", away);
+      const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
+
+      let line = null;
+      outer: for (const bm of (Array.isArray(bms) ? bms : [])){
+        for (const m of (Array.isArray(bm?.markets) ? bm.markets : [])){
+          if (m?.key !== "totals") continue;
+          const outs = Array.isArray(m?.outcomes) ? m.outcomes : [];
+          const first = outs.find(x => typeof x?.point === "number");
+          if (first){
+            line = first.point;
+            break outer;
+          }
+        }
+      }
+
+      const qOver = (line != null) ? bestTotalForPoint(bms, line, "Over") : null;
+      const qUnder = (line != null) ? bestTotalForPoint(bms, line, "Under") : null;
+
+      return {
+        id: ev?.id,
+        commence_time: ev?.commence_time,
+        home_team: home,
+        away_team: away,
+        outcomes: [
+          { name:"Home", prob: null, odds: qHome },
+          { name:"Draw", prob: null, odds: qDraw },
+          { name:"Away", prob: null, odds: qAway },
+        ],
+        totals: (line != null) ? [
+          { point: line, outcomes: [
+            { name:"Over", prob: null, odds: qOver },
+            { name:"Under", prob: null, odds: qUnder },
+          ]}
+        ] : [],
+        _raw: ev
+      };
+    }
+
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -546,8 +680,6 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-
-      // ✅ SAFE: torniamo ai markets stabili (evita 500)
       url.searchParams.set("markets", "h2h,totals");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
@@ -577,7 +709,6 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function getContextBundleForEvent(ev){
       const home = ev?.home_team;
       const away = ev?.away_team;
@@ -618,6 +749,14 @@
       return bundle;
     }
 
+    function emptyState(msg){
+      return `
+        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
+          ${esc(msg)}
+        </div>
+      `;
+    }
+
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
@@ -644,7 +783,9 @@
 
         setDemoMode(false);
 
-        lastData = data.events || [];
+        const rawEvents = Array.isArray(data?.data) ? data.data : [];
+        lastData = rawEvents.map(normalizeOddsEvent);
+
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
         if (!lastData.length){
@@ -656,8 +797,15 @@
         renderCards(lastData);
         $.status.textContent = "stato: ok";
       }catch(e){
-        console.error(e);
-        showNotice(`❌ get-odds fallito: ${String(e?.message || e)}.`);
+        const dbg = e?._debug || null;
+        if (dbg){
+          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
+        }else{
+          showNotice(`❌ get-odds fallito: ${String(e?.message || e)}. Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
+        }
+
         setDemoMode(true);
         lastData = buildDemoEvents();
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
@@ -671,7 +819,6 @@
     }
 
     function renderCard(ev){
-      const pick = bestOutcome(ev.outcomes || []);
       const when = fmtDate(ev.commence_time);
 
       const h = esc(ev.home_team||"");
@@ -691,7 +838,7 @@
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
 
-      const pill = (v)=> (v || v === 0) ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`;
+      const pill = (v)=> (typeof v === "number" ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
 
       return `
         <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
@@ -706,16 +853,22 @@
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
-            <div class="tlogo fallback" title="${h}">${hInitial}</div>
+            <div class="tlogo" title="${h}">
+              <img src="${esc(teamLogoUrl(ev.home_team) || '')}" alt="${h}" loading="lazy" referrerpolicy="no-referrer"
+                   onerror="this.remove(); this.parentElement.textContent='${hInitial}'">
+            </div>
             <div class="text-sm font-extrabold text-slate-900">${h}</div>
             <span class="vsPill">VS</span>
-            <div class="tlogo fallback" title="${a}">${aInitial}</div>
+            <div class="tlogo" title="${a}">
+              <img src="${esc(teamLogoUrl(ev.away_team) || '')}" alt="${a}" loading="lazy" referrerpolicy="no-referrer"
+                   onerror="this.remove(); this.parentElement.textContent='${aInitial}'">
+            </div>
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
           <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (best)</div>
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
               <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
@@ -725,27 +878,13 @@
               <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
               <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote migliori per bookmaker (proxy).</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
             </div>
-          </div>
-
-          <div class="mt-3 rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-            <div class="text-xs font-extrabold text-slate-900 mb-1">Gol/NoGol</div>
-            <div class="text-sm text-slate-700">Lo trovi in chat (previsione AI). Le quote “BTTS” verranno aggiunte quando il proxy le fornirà.</div>
-          </div>
-
-          <div class="mt-3 rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-            <div class="text-xs font-extrabold text-slate-900 mb-1">Previsione rapida</div>
-            <div class="text-sm text-slate-700">
-              <span class="font-extrabold text-slate-900">Esito:</span>
-              ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
-            </div>
-            <div class="text-[12px] text-slate-500 mt-2">Apri la chat per l’analisi completa.</div>
           </div>
 
           <div class="mt-4 flex items-center justify-end">
             <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
-              Leggi il pronostico AI 🧙‍♀️
+              Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
         </article>
@@ -774,16 +913,10 @@
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
-      const byMode = (m)=> $.tabBtns.find(x=>x.dataset.mode===m);
-      const btts = byMode("BTTS");
-      const exact = byMode("EXACT");
-      const scorer = byMode("SCORER");
-      const htft = byMode("HTFT");
-
-      if (btts) btts.classList.toggle("hidden", !soccer);
-      if (exact) exact.classList.toggle("hidden", !soccer);
-      if (scorer) scorer.classList.toggle("hidden", !soccer);
-      if (htft) htft.classList.toggle("hidden", !soccer);
+      $.tabBTTS.classList.toggle("hidden", !soccer);
+      $.tabEXACT.classList.toggle("hidden", !soccer);
+      $.tabSCORER.classList.toggle("hidden", !soccer);
+      $.tabTOTALS.classList.remove("hidden");
 
       const active = $.tabBtns.find(b=>b.classList.contains("active"));
       if (active && active.classList.contains("hidden")){
@@ -791,30 +924,33 @@
       }
     }
 
+    /* ====== FIX QUI: prompt “strong” che obbliga la previsione subito ====== */
+    function buildStrongMarketRequest(mode, ev){
+      const line = ev?.totals?.[0]?.point ?? null;
+      const hasLine = (typeof line === "number");
+
+      if (mode === "TOTALS"){
+        return hasLine
+          ? `Dammi SUBITO una previsione Under/Over sulla linea ${line}. Scegli una sola giocata principale (Over o Under) e motivala con 3 punti (quote + contesto). Poi proponi una giocata alternativa più prudente.`
+          : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
+      }
+      if (mode === "BTTS"){
+        return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
+      }
+      if (mode === "EXACT"){
+        return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
+      }
+      if (mode === "SCORER"){
+        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
+      }
+      return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
+    }
+
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
       const ctxNote = hasCtx
-        ? "Hai un CONTEXTO dati. Usalo."
+        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
         : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
-
-      const modeRuleMap = {
-        OPEN: "Analisi: sintetica ma motivata. Se un dato non c’è, dichiaralo.",
-        TOTALS: "Under/Over: usa linea e quote disponibili; dai una previsione e motivazione.",
-        BTTS: "Gol/NoGol: se non hai trend nel contesto, basati su quote h2h/totals e spiega prudenza.",
-        EXACT: "Risultato esatto: proponi 1–2 score plausibili, con motivazione e rischio.",
-        SCORER: "Marcatore: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo.",
-        OVER15: "Over 1.5: previsione + motivazione + rischio.",
-        OVER25: "Over 2.5: previsione + motivazione + rischio.",
-        OVER35: "Over 3.5: previsione + motivazione + rischio.",
-        FIRST_HALF: "Primo tempo: previsione prudente e motivata.",
-        HTFT: "1T/FT: 1 scenario principale + 1 alternativo, con rischio.",
-        DNB: "DNB: quale squadra ha più valore e perché.",
-        DC: "Doppia chance: indica la doppia più coerente e motivala.",
-        CARDS: "Cartellini: se non hai dati specifici, dichiaralo e resta prudente.",
-        CORNERS: "Calci d’angolo: se non hai dati specifici, dichiaralo e resta prudente."
-      };
-
-      const modeRule = modeRuleMap[mode] || "Mercato: previsione + motivazione. Se un dato manca, dichiaralo.";
 
       return [
         "REGOLA ASSOLUTA:",
@@ -822,10 +958,15 @@
         "- Usa SOLO ciò che trovi in `context` quando presente.",
         "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
         "",
-        ctxNote,
-        modeRule,
+        "OBBLIGO DI OUTPUT:",
+        "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
+        "- Devi dare SUBITO una previsione completa per il mercato richiesto.",
+        "- Struttura: (1) Giocata principale + motivazione breve (2) Alternativa prudente (3) Livello fiducia (basso/medio/alto).",
+        "- Chiudi SEMPRE con 1 domanda breve per far continuare l'utente (es. 'Vuoi anche 1X2 o Risultato Esatto?').",
         "",
-        "UTENTE:",
+        ctxNote,
+        "",
+        "RICHIESTA UTENTE:",
         userText || ""
       ].join("\n");
     }
@@ -836,9 +977,11 @@
       const text =
         (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
       if (text) return text;
+
       const text2 =
         (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
       if (text2) return text2;
+
       try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
     }
 
@@ -869,35 +1012,16 @@
         sport: sportKey
       };
 
-      const tries = [
-        { name:"proxy(get-odds)/betty-chat", url: ODDS_BASE + "/betty-chat" },
-        { name:"betty-direct/chat", url: BETTY_BASE + "/chat" },
-        { name:"betty-direct/betty-chat", url: BETTY_BASE + "/betty-chat" },
-      ];
-
-      let lastErr = null;
-
-      for (const t of tries){
-        try{
-          const data = await postJson(t.url, payload);
-          const text = extractBettyText(data);
-          if (!text) throw new Error(`Risposta vuota da ${t.name}`);
-          return text;
-        }catch(e){
-          lastErr = e;
-          continue;
-        }
+      try{
+        const data = await postJson(BETTY_BASE + "/chat", payload);
+        const text = extractBettyText(data);
+        if (!text) throw new Error("Risposta vuota da Betty");
+        return text;
+      }catch(e){
+        const dbg = e?._debug || { where:"betty /chat", error:String(e?.message || e) };
+        dbgWrite({ where:"askBetty", ...dbg });
+        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
       }
-
-      return `⚠️ Errore chiamata AI.\nDettaglio: ${String(lastErr?.message || lastErr)}`;
-    }
-
-    async function runMarketPrediction(){
-      const th = addThinking();
-      const ans = await askBetty("MARKET_PREDICTION");
-      removeThinking(th);
-      addBettyBubble(ans);
-      chatHistory.push({ role:"assistant", content: ans });
     }
 
     window.openBetty = async function(ev){
@@ -914,8 +1038,8 @@
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoFallback($.mhHomeLogo, ev.home_team);
-      setLogoFallback($.mhAwayLogo, ev.away_team);
+      setLogoNode($.mhHomeLogo, ev.home_team, null);
+      setLogoNode($.mhAwayLogo, ev.away_team, null);
 
       setMode("OPEN");
       openModal();
@@ -929,18 +1053,22 @@
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
-          addBettyBubble("Perfetto ✅ Contesto agganciato. Parto con l’analisi.");
+          addBettyBubble("Perfetto ✅ Contesto agganciato.");
         }else{
           $.chipContext.textContent = "context: NO";
-          addWarn(`Contesto non disponibile (${bundle?.reason || "unknown"}). Farò una lettura prudente basata sulle quote.`);
+          addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
         }
       }catch(err){
-        console.error(err);
         $.chipContext.textContent = "context: NO";
-        addWarn("Errore aggancio contesto. Farò una lettura prudente basata sulle quote.");
+        addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
 
-      await runMarketPrediction();
+      const th = addThinking();
+      const opening = await askBetty("Dammi SUBITO una analisi completa e una previsione principale + alternativa prudente.");
+      removeThinking(th);
+
+      addBettyBubble(opening);
+      chatHistory.push({ role:"assistant", content: opening });
     }
 
     $.refresh.addEventListener("click", load);
@@ -951,15 +1079,30 @@
       if (custom) $.sportCustom.focus();
     });
 
+    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
+
         setMode(btn.dataset.mode);
+
         if (!currentEvent){
-          addBettyBubble("Seleziona prima un match 😊");
+          addBettyBubble("Seleziona un match 😊");
           return;
         }
-        await runMarketPrediction();
+
+        const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
+
+        // opzionale: non spammo la chat con "(richiesta rapida)" ogni volta, faccio solo una riga elegante
+        addUserBubble(btn.textContent);
+        chatHistory.push({ role:"user", content: strong });
+
+        const th = addThinking();
+        const ans = await askBetty(strong);
+        removeThinking(th);
+
+        addBettyBubble(ans);
+        chatHistory.push({ role:"assistant", content: ans });
       });
     });
 
@@ -989,6 +1132,31 @@
     $.closeModal.addEventListener("click", closeModal);
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
+
+    $.pingOdds.addEventListener("click", async ()=>{
+      try{
+        const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
+        dbgWrite({ ping:"get-odds /", ok });
+      }catch(e){
+        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
+    $.pingHub.addEventListener("click", async ()=>{
+      try{
+        const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
+        dbgWrite({ ping:"football-hub /", ok });
+      }catch(e){
+        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
+    $.pingBettyDirect.addEventListener("click", async ()=>{
+      try{
+        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
+        dbgWrite({ ping:"betty diretto /chat", res });
+      }catch(e){
+        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
+      }
+    });
 
     load();
   </script>
