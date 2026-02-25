@@ -452,9 +452,6 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    // ✅ INDICE EVENTI (FIX CLICK)
-    const eventIndex = new Map(); // id -> event
-
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -505,9 +502,6 @@
       return json ?? txt;
     }
 
-    /* ===========================
-       LOGHI (fallback avatar)
-    ============================ */
     function teamLogoUrl(teamName){
       const name = String(teamName || "").trim();
       if (!name) return null;
@@ -538,9 +532,6 @@
       node.appendChild(img);
     }
 
-    /* ===========================
-       CHAT UI
-    ============================ */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -590,9 +581,6 @@
       if (n) n.remove();
     }
 
-    /* ===========================
-       NORMALIZZAZIONE TEAM (RESOLVE)
-    ============================ */
     function normalizeTeamForResolve(name){
       const n = String(name || "").trim();
       if (!n) return n;
@@ -609,9 +597,6 @@
       return n.replace(/\s+/g, " ");
     }
 
-    /* ===========================
-       CHAT "LIBERA": switch match se cita 2 squadre
-    ============================ */
     function normTeamToken(s){
       return String(s||"")
         .toLowerCase()
@@ -623,24 +608,15 @@
       const t = normTeamToken(text);
       if (!t || !Array.isArray(events) || !events.length) return null;
 
-      const alias = {
-        "juve":"juventus",
-        "inter":"inter",
-        "milan":"milan",
-        "napoli":"napoli",
-        "roma":"roma",
-        "lazio":"lazio",
-        "fiorentina":"fiorentina",
-        "psg":"psg"
-      };
+      const alias = { "juve":"juventus" };
       const tokens = t.split(" ").map(x => alias[x] || x).filter(Boolean);
 
       for (const ev of events){
         const h = normTeamToken(ev.home_team);
         const a = normTeamToken(ev.away_team);
 
-        const hitHome = tokens.some(tok => tok && (h.includes(tok) || tok.includes(h)));
-        const hitAway = tokens.some(tok => tok && (a.includes(tok) || tok.includes(a)));
+        const hitHome = tokens.some(tok => tok && h.includes(tok));
+        const hitAway = tokens.some(tok => tok && a.includes(tok));
 
         if (hitHome && hitAway) return ev;
       }
@@ -658,9 +634,6 @@
       setLogoNode($.mhAwayLogo, ev.away_team, null);
     }
 
-    /* ===========================
-       ODDS NORMALIZATION
-    ============================ */
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -896,16 +869,10 @@
     }
 
     function renderCards(events){
-      // ✅ aggiorno indice eventi
-      eventIndex.clear();
-      for (const ev of events){
-        if (ev && ev.id) eventIndex.set(String(ev.id), ev);
-      }
-
-      $.cards.innerHTML = events.map(renderCard).join("");
+      $.cards.innerHTML = events.map((ev, idx) => renderCard(ev, idx)).join("");
     }
 
-    function renderCard(ev){
+    function renderCard(ev, idx){
       const when = fmtDate(ev.commence_time);
 
       const h = esc(ev.home_team||"");
@@ -970,8 +937,8 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <!-- ✅ FIX: niente JSON in onclick, solo ID -->
-            <button class="btn btnPrimary js-open-betty" data-eid="${esc(ev.id)}">
+            <!-- ✅ FIX: chiave UNICA = indice della card -->
+            <button class="btn btnPrimary js-open-betty" data-idx="${idx}">
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
@@ -979,21 +946,21 @@
       `;
     }
 
-    // ✅ FIX: click delegation sui bottoni delle card
-    function openBettyById(eid){
-      const ev = eventIndex.get(String(eid));
-      if (!ev){
-        showNotice("⚠️ Evento non trovato. Prova ad aggiornare i match.");
-        return;
-      }
-      window.openBetty(ev);
-    }
-
+    // ✅ CLICK delegation: apre l’evento in base all’indice (mai duplicato)
     $.cards.addEventListener("click", (e)=>{
       const btn = e.target.closest(".js-open-betty");
       if (!btn) return;
-      const eid = btn.getAttribute("data-eid");
-      if (eid) openBettyById(eid);
+
+      const idx = Number(btn.getAttribute("data-idx"));
+      const ev = (Number.isFinite(idx) && idx >= 0) ? lastData[idx] : null;
+
+      if (!ev){
+        showNotice("⚠️ Evento non trovato (idx non valido). Prova ad aggiornare i match.");
+        dbgWrite({ where:"openByIdx", idx, lastLen: lastData?.length || 0 });
+        return;
+      }
+
+      window.openBetty(ev);
     });
 
     function openModal(){
@@ -1098,18 +1065,16 @@
     }
 
     async function askBetty(userText){
-      if (!currentEvent && (!lastData || !lastData.length)){
+      if (!currentEvent){
         addBettyBubble("Seleziona prima un match 😊");
         return "";
       }
 
-      const sportKey = chosenSport();
-
       const mentioned = findEventByTeamsInText(userText, lastData);
-      let targetEvent = currentEvent || lastData[0];
+      let targetEvent = currentEvent;
       let targetBundle = currentContextBundle;
 
-      if (mentioned && (!currentEvent || mentioned.id !== currentEvent.id)){
+      if (mentioned && mentioned.id !== currentEvent.id){
         targetEvent = mentioned;
         updateModalHeaderForEvent(mentioned);
 
@@ -1141,7 +1106,7 @@
         resolve: (targetBundle && targetBundle.resolve) ? targetBundle.resolve : null,
         history: chatHistory.slice(-10),
         demo: isDemoMode,
-        sport: sportKey
+        sport: chosenSport()
       };
 
       try{
@@ -1184,7 +1149,7 @@
           $.chipContext.textContent = "context: NO";
           addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
         }
-      }catch(err){
+      }catch{
         $.chipContext.textContent = "context: NO";
         addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
@@ -1208,7 +1173,6 @@
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
-
         setMode(btn.dataset.mode);
 
         if (!currentEvent){
