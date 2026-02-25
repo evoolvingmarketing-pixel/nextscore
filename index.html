@@ -38,6 +38,7 @@
       border:1px solid var(--border);
       background:#fff;
       transition: transform .08s ease, box-shadow .12s ease;
+      cursor:pointer;
     }
     .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 24px rgba(2,6,23,.10); }
     .btnPrimary{
@@ -176,6 +177,7 @@
       border:1px solid var(--border);
       background:#fff;
       color:#0f172a;
+      cursor:pointer;
     }
     .tabBtn.active{
       border-color: rgba(245,158,11,.50);
@@ -317,6 +319,7 @@
           <span class="chip">stile: light premium</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
+          <span class="chip" id="chipVer">ver: —</span>
         </div>
       </div>
     </section>
@@ -366,13 +369,15 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Che ne pensi di Juve Fiorentina?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
   </div>
 
   <script>
+    const __NS_VER = "idxfix-2026-02-25a";
+
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
     const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
@@ -411,6 +416,7 @@
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
       chipContext: el("chipContext"),
+      chipVer: el("chipVer"),
 
       sport: el("sport"),
       sportCustom: el("sportCustom"),
@@ -451,6 +457,8 @@
 
     let currentContextBundle = null;
     const contextCache = new Map();
+
+    $.chipVer.textContent = "ver: " + __NS_VER;
 
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
@@ -581,59 +589,6 @@
       if (n) n.remove();
     }
 
-    function normalizeTeamForResolve(name){
-      const n = String(name || "").trim();
-      if (!n) return n;
-
-      const key = n.toLowerCase();
-      const map = {
-        "inter milan": "Inter",
-        "internazionale": "Inter",
-        "fc internazionale": "Inter",
-        "milan": "AC Milan",
-        "ac milan": "AC Milan",
-      };
-      if (map[key]) return map[key];
-      return n.replace(/\s+/g, " ");
-    }
-
-    function normTeamToken(s){
-      return String(s||"")
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s]/gu," ")
-        .replace(/\s+/g," ")
-        .trim();
-    }
-    function findEventByTeamsInText(text, events){
-      const t = normTeamToken(text);
-      if (!t || !Array.isArray(events) || !events.length) return null;
-
-      const alias = { "juve":"juventus" };
-      const tokens = t.split(" ").map(x => alias[x] || x).filter(Boolean);
-
-      for (const ev of events){
-        const h = normTeamToken(ev.home_team);
-        const a = normTeamToken(ev.away_team);
-
-        const hitHome = tokens.some(tok => tok && h.includes(tok));
-        const hitAway = tokens.some(tok => tok && a.includes(tok));
-
-        if (hitHome && hitAway) return ev;
-      }
-      return null;
-    }
-
-    function updateModalHeaderForEvent(ev){
-      if (!ev) return;
-      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
-      $.chatSub.textContent = fmtDate(ev.commence_time);
-
-      $.mhHomeName.textContent = ev.home_team || "Home";
-      $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoNode($.mhHomeLogo, ev.home_team, null);
-      setLogoNode($.mhAwayLogo, ev.away_team, null);
-    }
-
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -758,14 +713,9 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function getContextBundleForEvent(ev){
-      const homeRaw = ev?.home_team;
-      const awayRaw = ev?.away_team;
-
-      const home = normalizeTeamForResolve(homeRaw);
-      const away = normalizeTeamForResolve(awayRaw);
-
+      const home = ev?.home_team;
+      const away = ev?.away_team;
       const dateStr = dateOnlyISO(ev?.commence_time);
       const key = `${home}__${away}__${dateStr}`;
 
@@ -868,10 +818,12 @@
       }
     }
 
+    // ✅ ora passiamo anche idx
     function renderCards(events){
       $.cards.innerHTML = events.map((ev, idx) => renderCard(ev, idx)).join("");
     }
 
+    // ✅ niente JSON in onclick -> data-idx
     function renderCard(ev, idx){
       const when = fmtDate(ev.commence_time);
 
@@ -937,7 +889,6 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <!-- ✅ FIX: chiave UNICA = indice della card -->
             <button class="btn btnPrimary js-open-betty" data-idx="${idx}">
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
@@ -946,7 +897,7 @@
       `;
     }
 
-    // ✅ CLICK delegation: apre l’evento in base all’indice (mai duplicato)
+    // ✅ CLICK delegation su #cards: prende SEMPRE il bottone giusto
     $.cards.addEventListener("click", (e)=>{
       const btn = e.target.closest(".js-open-betty");
       if (!btn) return;
@@ -954,13 +905,19 @@
       const idx = Number(btn.getAttribute("data-idx"));
       const ev = (Number.isFinite(idx) && idx >= 0) ? lastData[idx] : null;
 
+      dbgWrite({
+        ver: __NS_VER,
+        clicked_idx: idx,
+        picked: ev ? `${ev.home_team} vs ${ev.away_team}` : null,
+        lastData_len: lastData?.length || 0
+      });
+
       if (!ev){
-        showNotice("⚠️ Evento non trovato (idx non valido). Prova ad aggiornare i match.");
-        dbgWrite({ where:"openByIdx", idx, lastLen: lastData?.length || 0 });
+        showNotice("⚠️ Evento non trovato (idx non valido). Ricarica i match.");
         return;
       }
 
-      window.openBetty(ev);
+      openBettyByIndex(idx);
     });
 
     function openModal(){
@@ -1070,43 +1027,17 @@
         return "";
       }
 
-      const mentioned = findEventByTeamsInText(userText, lastData);
-      let targetEvent = currentEvent;
-      let targetBundle = currentContextBundle;
-
-      if (mentioned && mentioned.id !== currentEvent.id){
-        targetEvent = mentioned;
-        updateModalHeaderForEvent(mentioned);
-
-        addBettyBubble(`Ok, rispondo su: ${mentioned.home_team} vs ${mentioned.away_team}`);
-        $.chipContext.textContent = "context: carico…";
-
-        try{
-          targetBundle = await getContextBundleForEvent(mentioned);
-          $.chipContext.textContent = (targetBundle && targetBundle.ok) ? "context: ok" : "context: NO";
-          if (!(targetBundle && targetBundle.ok)) addWarn(`Non aggancio il contesto per questo match. Dettaglio: ${targetBundle?.reason || "unknown"}`);
-        }catch{
-          $.chipContext.textContent = "context: NO";
-          targetBundle = { ok:false };
-          addWarn("Errore aggancio contesto per il match citato. Farò una lettura BASE senza inventare dati.");
-        }
-      }
-
-      const forcedUserText = [
-        `EVENTO TARGET (OBBLIGATORIO): ${targetEvent.home_team} vs ${targetEvent.away_team} — ${targetEvent.commence_time}`,
-        "",
-        userText || ""
-      ].join("\n");
+      const sportKey = chosenSport();
 
       const payload = {
         mode: currentMode,
-        prompt: buildAntiHallucinationPrompt(forcedUserText, currentMode, targetBundle),
-        event: targetEvent,
-        context: (targetBundle && targetBundle.ok) ? (targetBundle.context?.context || targetBundle.context) : null,
-        resolve: (targetBundle && targetBundle.resolve) ? targetBundle.resolve : null,
+        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
+        event: currentEvent,
+        context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
+        resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
         history: chatHistory.slice(-10),
         demo: isDemoMode,
-        sport: chosenSport()
+        sport: sportKey
       };
 
       try{
@@ -1121,6 +1052,13 @@
       }
     }
 
+    // ✅ wrapper: prende l’evento dalla lista (mai dal DOM / JSON inline)
+    async function openBettyByIndex(idx){
+      const ev = lastData[idx];
+      if (!ev) return;
+      await window.openBetty(ev);
+    }
+
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -1129,13 +1067,19 @@
       const sportKey = chosenSport();
       setTabsForSport(sportKey);
 
-      updateModalHeaderForEvent(ev);
+      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
+      $.chatSub.textContent = fmtDate(ev.commence_time);
       $.chatFeed.innerHTML = "";
+
+      $.mhHomeName.textContent = ev.home_team || "Home";
+      $.mhAwayName.textContent = ev.away_team || "Away";
+      setLogoNode($.mhHomeLogo, ev.home_team, null);
+      setLogoNode($.mhAwayLogo, ev.away_team, null);
 
       setMode("OPEN");
       openModal();
 
-      addBettyBubble("Ok, aggancio il contesto del match…");
+      addBettyBubble(`Ok, aggancio il contesto del match… (${ev.home_team} vs ${ev.away_team})`);
       $.chipContext.textContent = "context: carico…";
 
       try{
@@ -1149,7 +1093,7 @@
           $.chipContext.textContent = "context: NO";
           addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
         }
-      }catch{
+      }catch(err){
         $.chipContext.textContent = "context: NO";
         addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
@@ -1173,6 +1117,7 @@
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
+
         setMode(btn.dataset.mode);
 
         if (!currentEvent){
@@ -1224,25 +1169,25 @@
     $.pingOdds.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"get-odds /", ok });
+        dbgWrite({ ping:"get-odds /", ok, ver: __NS_VER });
       }catch(e){
-        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
+        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
       }
     });
     $.pingHub.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"football-hub /", ok });
+        dbgWrite({ ping:"football-hub /", ok, ver: __NS_VER });
       }catch(e){
-        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
+        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
       }
     });
     $.pingBettyDirect.addEventListener("click", async ()=>{
       try{
-        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
-        dbgWrite({ ping:"betty diretto /chat", res });
+        const res = await postJson(BETTY_BASE + "/chat", { ping:true, ver: __NS_VER });
+        dbgWrite({ ping:"betty diretto /chat", res, ver: __NS_VER });
       }catch(e){
-        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
+        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
       }
     });
 
