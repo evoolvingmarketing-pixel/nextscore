@@ -366,7 +366,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Che ne pensi di Juve Fiorentina?')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -506,6 +506,9 @@
       return json ?? txt;
     }
 
+    /* ===========================
+       LOGHI (fallback avatar)
+    ============================ */
     function teamLogoUrl(teamName){
       const name = String(teamName || "").trim();
       if (!name) return null;
@@ -536,6 +539,9 @@
       node.appendChild(img);
     }
 
+    /* ===========================
+       CHAT UI
+    ============================ */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -585,6 +591,92 @@
       if (n) n.remove();
     }
 
+    /* ===========================
+       NORMALIZZAZIONE TEAM (RESOLVE)
+       Fix "Inter Milan" vs "Milan"
+    ============================ */
+    function normalizeTeamForResolve(name){
+      const n = String(name || "").trim();
+      if (!n) return n;
+
+      const key = n.toLowerCase();
+
+      // ✅ Casi noti / alias (aggiungili quando serve)
+      const map = {
+        "inter milan": "Inter",
+        "internazionale": "Inter",
+        "fc internazionale": "Inter",
+
+        "milan": "AC Milan",
+        "ac milan": "AC Milan",
+      };
+
+      if (map[key]) return map[key];
+
+      return n.replace(/\s+/g, " ");
+    }
+
+    /* ===========================
+       MATCH "LIBERO" IN CHAT:
+       se nel testo compaiono 2 squadre,
+       switch automatico evento target
+    ============================ */
+    function normTeamToken(s){
+      return String(s||"")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu," ")
+        .replace(/\s+/g," ")
+        .trim();
+    }
+
+    function findEventByTeamsInText(text, events){
+      const t = normTeamToken(text);
+      if (!t || !Array.isArray(events) || !events.length) return null;
+
+      // alias “da utente” -> token “standard”
+      const alias = {
+        "juve":"juventus",
+        "inter":"inter",
+        "milan":"milan",
+        "napoli":"napoli",
+        "roma":"roma",
+        "lazio":"lazio",
+        "fiorentina":"fiorentina",
+        "psg":"psg",
+        "man":"man",
+        "united":"united",
+        "city":"city",
+      };
+
+      const tokens = t.split(" ").map(x => alias[x] || x).filter(Boolean);
+
+      // Match robusto: verifica che nel testo ci sia qualcosa che colpisca HOME e AWAY
+      for (const ev of events){
+        const h = normTeamToken(ev.home_team);
+        const a = normTeamToken(ev.away_team);
+
+        const hitHome = tokens.some(tok => tok && (h.includes(tok) || tok.includes(h)));
+        const hitAway = tokens.some(tok => tok && (a.includes(tok) || tok.includes(a)));
+
+        if (hitHome && hitAway) return ev;
+      }
+      return null;
+    }
+
+    function updateModalHeaderForEvent(ev){
+      if (!ev) return;
+      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
+      $.chatSub.textContent = fmtDate(ev.commence_time);
+
+      $.mhHomeName.textContent = ev.home_team || "Home";
+      $.mhAwayName.textContent = ev.away_team || "Away";
+      setLogoNode($.mhHomeLogo, ev.home_team, null);
+      setLogoNode($.mhAwayLogo, ev.away_team, null);
+    }
+
+    /* ===========================
+       ODDS NORMALIZATION (best odds)
+    ============================ */
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -671,6 +763,9 @@
       };
     }
 
+    /* ===========================
+       FETCH EVENTS
+    ============================ */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -690,6 +785,9 @@
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
+    /* ===========================
+       FOOTBALL HUB (resolve/context)
+    ============================ */
     async function hubResolve(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
       url.searchParams.set("home", home);
@@ -709,9 +807,15 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
+
     async function getContextBundleForEvent(ev){
-      const home = ev?.home_team;
-      const away = ev?.away_team;
+      const homeRaw = ev?.home_team;
+      const awayRaw = ev?.away_team;
+
+      // ✅ NORMALIZZO SOLO PER RESOLVE (fix Inter Milan / Milan)
+      const home = normalizeTeamForResolve(homeRaw);
+      const away = normalizeTeamForResolve(awayRaw);
+
       const dateStr = dateOnlyISO(ev?.commence_time);
       const key = `${home}__${away}__${dateStr}`;
 
@@ -749,6 +853,9 @@
       return bundle;
     }
 
+    /* ===========================
+       RENDER
+    ============================ */
     function emptyState(msg){
       return `
         <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
@@ -924,7 +1031,7 @@
       }
     }
 
-    /* ====== FIX QUI: prompt “strong” che obbliga la previsione subito ====== */
+    /* ====== prompt “strong” che obbliga la previsione subito ====== */
     function buildStrongMarketRequest(mode, ev){
       const line = ev?.totals?.[0]?.point ?? null;
       const hasLine = (typeof line === "number");
@@ -993,20 +1100,57 @@
       });
     }
 
+    /* ===========================
+       BETTY CALL (con switch evento)
+    ============================ */
     async function askBetty(userText){
-      if (!currentEvent){
+      if (!currentEvent && (!lastData || !lastData.length)){
         addBettyBubble("Seleziona prima un match 😊");
         return "";
       }
 
+      // base
       const sportKey = chosenSport();
+
+      // ✅ Switch evento se l'utente cita un altro match nel testo (2 squadre)
+      const mentioned = findEventByTeamsInText(userText, lastData);
+
+      let targetEvent = currentEvent || lastData[0];
+      let targetBundle = currentContextBundle;
+
+      if (mentioned && (!currentEvent || mentioned.id !== currentEvent.id)){
+        targetEvent = mentioned;
+
+        // aggiorno header modal (così l'utente vede su che match stiamo rispondendo)
+        updateModalHeaderForEvent(mentioned);
+
+        addBettyBubble(`Ok, rispondo su: ${mentioned.home_team} vs ${mentioned.away_team}`);
+        $.chipContext.textContent = "context: carico…";
+
+        try{
+          targetBundle = await getContextBundleForEvent(mentioned);
+          $.chipContext.textContent = (targetBundle && targetBundle.ok) ? "context: ok" : "context: NO";
+          if (!(targetBundle && targetBundle.ok)) addWarn(`Non aggancio il contesto per questo match. Dettaglio: ${targetBundle?.reason || "unknown"}`);
+        }catch{
+          $.chipContext.textContent = "context: NO";
+          targetBundle = { ok:false };
+          addWarn("Errore aggancio contesto per il match citato. Farò una lettura BASE senza inventare dati.");
+        }
+      }
+
+      // 🔥 FORZO che la risposta sia sull'evento nel payload
+      const forcedUserText = [
+        `EVENTO TARGET (OBBLIGATORIO): ${targetEvent.home_team} vs ${targetEvent.away_team} — ${targetEvent.commence_time}`,
+        "",
+        userText || ""
+      ].join("\n");
 
       const payload = {
         mode: currentMode,
-        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
-        event: currentEvent,
-        context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
-        resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
+        prompt: buildAntiHallucinationPrompt(forcedUserText, currentMode, targetBundle),
+        event: targetEvent,
+        context: (targetBundle && targetBundle.ok) ? (targetBundle.context?.context || targetBundle.context) : null,
+        resolve: (targetBundle && targetBundle.resolve) ? targetBundle.resolve : null,
         history: chatHistory.slice(-10),
         demo: isDemoMode,
         sport: sportKey
@@ -1024,6 +1168,9 @@
       }
     }
 
+    /* ===========================
+       OPEN BETTY (match selezionato)
+    ============================ */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -1032,14 +1179,8 @@
       const sportKey = chosenSport();
       setTabsForSport(sportKey);
 
-      $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
-      $.chatSub.textContent = fmtDate(ev.commence_time);
+      updateModalHeaderForEvent(ev);
       $.chatFeed.innerHTML = "";
-
-      $.mhHomeName.textContent = ev.home_team || "Home";
-      $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoNode($.mhHomeLogo, ev.home_team, null);
-      setLogoNode($.mhAwayLogo, ev.away_team, null);
 
       setMode("OPEN");
       openModal();
@@ -1071,6 +1212,9 @@
       chatHistory.push({ role:"assistant", content: opening });
     }
 
+    /* ===========================
+       EVENTS
+    ============================ */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -1079,7 +1223,7 @@
       if (custom) $.sportCustom.focus();
     });
 
-    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
+    /* ========= TAB CLICK: richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
@@ -1093,7 +1237,6 @@
 
         const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
 
-        // opzionale: non spammo la chat con "(richiesta rapida)" ogni volta, faccio solo una riga elegante
         addUserBubble(btn.textContent);
         chatHistory.push({ role:"user", content: strong });
 
@@ -1133,6 +1276,9 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
+    /* ===========================
+       DEBUG PINGS
+    ============================ */
     $.pingOdds.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
