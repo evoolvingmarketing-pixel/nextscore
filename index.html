@@ -452,6 +452,9 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
+    // ✅ INDICE EVENTI (FIX CLICK)
+    const eventIndex = new Map(); // id -> event
+
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -482,10 +485,6 @@
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
 
-    function safeJson(obj){
-      const s = JSON.stringify(obj || {});
-      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
-    }
     function dbgWrite(obj){
       try{
         $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
@@ -593,33 +592,25 @@
 
     /* ===========================
        NORMALIZZAZIONE TEAM (RESOLVE)
-       Fix "Inter Milan" vs "Milan"
     ============================ */
     function normalizeTeamForResolve(name){
       const n = String(name || "").trim();
       if (!n) return n;
 
       const key = n.toLowerCase();
-
-      // ✅ Casi noti / alias (aggiungili quando serve)
       const map = {
         "inter milan": "Inter",
         "internazionale": "Inter",
         "fc internazionale": "Inter",
-
         "milan": "AC Milan",
         "ac milan": "AC Milan",
       };
-
       if (map[key]) return map[key];
-
       return n.replace(/\s+/g, " ");
     }
 
     /* ===========================
-       MATCH "LIBERO" IN CHAT:
-       se nel testo compaiono 2 squadre,
-       switch automatico evento target
+       CHAT "LIBERA": switch match se cita 2 squadre
     ============================ */
     function normTeamToken(s){
       return String(s||"")
@@ -628,12 +619,10 @@
         .replace(/\s+/g," ")
         .trim();
     }
-
     function findEventByTeamsInText(text, events){
       const t = normTeamToken(text);
       if (!t || !Array.isArray(events) || !events.length) return null;
 
-      // alias “da utente” -> token “standard”
       const alias = {
         "juve":"juventus",
         "inter":"inter",
@@ -642,15 +631,10 @@
         "roma":"roma",
         "lazio":"lazio",
         "fiorentina":"fiorentina",
-        "psg":"psg",
-        "man":"man",
-        "united":"united",
-        "city":"city",
+        "psg":"psg"
       };
-
       const tokens = t.split(" ").map(x => alias[x] || x).filter(Boolean);
 
-      // Match robusto: verifica che nel testo ci sia qualcosa che colpisca HOME e AWAY
       for (const ev of events){
         const h = normTeamToken(ev.home_team);
         const a = normTeamToken(ev.away_team);
@@ -675,7 +659,7 @@
     }
 
     /* ===========================
-       ODDS NORMALIZATION (best odds)
+       ODDS NORMALIZATION
     ============================ */
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
@@ -763,9 +747,6 @@
       };
     }
 
-    /* ===========================
-       FETCH EVENTS
-    ============================ */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -785,9 +766,6 @@
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
-    /* ===========================
-       FOOTBALL HUB (resolve/context)
-    ============================ */
     async function hubResolve(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
       url.searchParams.set("home", home);
@@ -812,7 +790,6 @@
       const homeRaw = ev?.home_team;
       const awayRaw = ev?.away_team;
 
-      // ✅ NORMALIZZO SOLO PER RESOLVE (fix Inter Milan / Milan)
       const home = normalizeTeamForResolve(homeRaw);
       const away = normalizeTeamForResolve(awayRaw);
 
@@ -853,9 +830,6 @@
       return bundle;
     }
 
-    /* ===========================
-       RENDER
-    ============================ */
     function emptyState(msg){
       return `
         <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
@@ -922,6 +896,12 @@
     }
 
     function renderCards(events){
+      // ✅ aggiorno indice eventi
+      eventIndex.clear();
+      for (const ev of events){
+        if (ev && ev.id) eventIndex.set(String(ev.id), ev);
+      }
+
       $.cards.innerHTML = events.map(renderCard).join("");
     }
 
@@ -990,13 +970,31 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
+            <!-- ✅ FIX: niente JSON in onclick, solo ID -->
+            <button class="btn btnPrimary js-open-betty" data-eid="${esc(ev.id)}">
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
         </article>
       `;
     }
+
+    // ✅ FIX: click delegation sui bottoni delle card
+    function openBettyById(eid){
+      const ev = eventIndex.get(String(eid));
+      if (!ev){
+        showNotice("⚠️ Evento non trovato. Prova ad aggiornare i match.");
+        return;
+      }
+      window.openBetty(ev);
+    }
+
+    $.cards.addEventListener("click", (e)=>{
+      const btn = e.target.closest(".js-open-betty");
+      if (!btn) return;
+      const eid = btn.getAttribute("data-eid");
+      if (eid) openBettyById(eid);
+    });
 
     function openModal(){
       $.overlay.classList.add("show");
@@ -1031,7 +1029,6 @@
       }
     }
 
-    /* ====== prompt “strong” che obbliga la previsione subito ====== */
     function buildStrongMarketRequest(mode, ev){
       const line = ev?.totals?.[0]?.point ?? null;
       const hasLine = (typeof line === "number");
@@ -1100,28 +1097,20 @@
       });
     }
 
-    /* ===========================
-       BETTY CALL (con switch evento)
-    ============================ */
     async function askBetty(userText){
       if (!currentEvent && (!lastData || !lastData.length)){
         addBettyBubble("Seleziona prima un match 😊");
         return "";
       }
 
-      // base
       const sportKey = chosenSport();
 
-      // ✅ Switch evento se l'utente cita un altro match nel testo (2 squadre)
       const mentioned = findEventByTeamsInText(userText, lastData);
-
       let targetEvent = currentEvent || lastData[0];
       let targetBundle = currentContextBundle;
 
       if (mentioned && (!currentEvent || mentioned.id !== currentEvent.id)){
         targetEvent = mentioned;
-
-        // aggiorno header modal (così l'utente vede su che match stiamo rispondendo)
         updateModalHeaderForEvent(mentioned);
 
         addBettyBubble(`Ok, rispondo su: ${mentioned.home_team} vs ${mentioned.away_team}`);
@@ -1138,7 +1127,6 @@
         }
       }
 
-      // 🔥 FORZO che la risposta sia sull'evento nel payload
       const forcedUserText = [
         `EVENTO TARGET (OBBLIGATORIO): ${targetEvent.home_team} vs ${targetEvent.away_team} — ${targetEvent.commence_time}`,
         "",
@@ -1168,9 +1156,6 @@
       }
     }
 
-    /* ===========================
-       OPEN BETTY (match selezionato)
-    ============================ */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -1212,9 +1197,6 @@
       chatHistory.push({ role:"assistant", content: opening });
     }
 
-    /* ===========================
-       EVENTS
-    ============================ */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -1223,7 +1205,6 @@
       if (custom) $.sportCustom.focus();
     });
 
-    /* ========= TAB CLICK: richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
@@ -1276,9 +1257,6 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
-    /* ===========================
-       DEBUG PINGS
-    ============================ */
     $.pingOdds.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
