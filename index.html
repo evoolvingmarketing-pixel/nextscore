@@ -319,7 +319,6 @@
         <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
       </div>
 
-      <!-- MERCATI (BOTTONI) -->
       <div class="microTabs" id="marketsBar">
         <button class="tabBtn active" data-mode="OPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS">Under/Over</button>
@@ -327,7 +326,6 @@
         <button class="tabBtn" data-mode="EXACT">Risultato Esatto</button>
         <button class="tabBtn" data-mode="SCORER">Marcatore</button>
 
-        <!-- extra mercati -->
         <button class="tabBtn" data-mode="OVER15">Over 1.5</button>
         <button class="tabBtn" data-mode="OVER25">Over 2.5</button>
         <button class="tabBtn" data-mode="OVER35">Over 3.5</button>
@@ -352,14 +350,12 @@
   </div>
 
   <script>
-    /* ===== CONFIG ===== */
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // fallback
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
 
     const MAX_COUNT = 100;
 
-    /* ===== DEMO DATA (fallback) ===== */
     function buildDemoEvents(){
       const now = Date.now();
       const mk = (id, home, away, mins) => ({
@@ -384,7 +380,6 @@
       ];
     }
 
-    /* ===== DOM ===== */
     const el = (id) => document.getElementById(id);
     const $ = {
       rate: el("rateInfo"),
@@ -416,7 +411,6 @@
       mhAwayName: el("mhAwayName"),
     };
 
-    /* ===== STATE ===== */
     let lastData = [];
     let currentEvent = null;
     let currentMode = "OPEN";
@@ -426,7 +420,6 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    /* ===== HELPERS ===== */
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -465,7 +458,7 @@
 
     function emptyState(msg){
       return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
+        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
           ${esc(msg)}
         </div>
       `;
@@ -494,7 +487,6 @@
       node.textContent = (teamName||"?").slice(0,1).toUpperCase();
     }
 
-    /* ===== CHAT UI HELPERS ===== */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -507,7 +499,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addWarn(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -518,7 +509,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -527,7 +517,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addThinking(){
       const id = "t_" + Math.random().toString(36).slice(2);
       $.chatFeed.insertAdjacentHTML("beforeend", `
@@ -557,7 +546,9 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals,btts"); // include btts se disponibile nel proxy
+
+      // ✅ SAFE: torniamo ai markets stabili (evita 500)
+      url.searchParams.set("markets", "h2h,totals");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
@@ -567,7 +558,6 @@
       $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
     }
 
-    /* ===== API (Football HUB context) ===== */
     async function hubResolve(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
       url.searchParams.set("home", home);
@@ -575,13 +565,11 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function hubContextByFixtureKey(fixtureKey){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("fixture_key", String(fixtureKey));
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function hubContextByTeams(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("home", home);
@@ -630,7 +618,6 @@
       return bundle;
     }
 
-    /* ===== LOAD EVENTS ===== */
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
@@ -679,7 +666,6 @@
       }
     }
 
-    /* ===== RENDER CARDS ===== */
     function renderCards(events){
       $.cards.innerHTML = events.map(renderCard).join("");
     }
@@ -695,7 +681,6 @@
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
       const totals = Array.isArray(ev.totals) ? ev.totals : [];
-      const btts = ev?.btts?.outcomes ? ev.btts.outcomes : null;
 
       const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
       const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
@@ -706,13 +691,10 @@
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
 
-      const qYes = btts?.find(x=>/yes/i.test(x.name))?.odds ?? null;
-      const qNo  = btts?.find(x=>/no/i.test(x.name))?.odds ?? null;
-
       const pill = (v)=> (v || v === 0) ? `<span class="chip" style="font-weight:900;">${esc(v)}</span>` : `<span class="chip" style="opacity:.6;">—</span>`;
 
       return `
-        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
+        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
@@ -747,22 +729,18 @@
             </div>
           </div>
 
-          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Gol/NoGol (se disponibile)</div>
-              <div class="flex items-center justify-between text-sm"><span>Gol</span>${pill(qYes)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>NoGol</span>${pill(qNo)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Se vedi “—” il mercato non arriva dal proxy.</div>
-            </div>
+          <div class="mt-3 rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+            <div class="text-xs font-extrabold text-slate-900 mb-1">Gol/NoGol</div>
+            <div class="text-sm text-slate-700">Lo trovi in chat (previsione AI). Le quote “BTTS” verranno aggiunte quando il proxy le fornirà.</div>
+          </div>
 
-            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Previsione rapida</div>
-              <div class="text-sm text-slate-700">
-                <span class="font-extrabold text-slate-900">Esito:</span>
-                ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
-              </div>
-              <div class="text-[12px] text-slate-500 mt-2">Apri la chat per l’analisi completa.</div>
+          <div class="mt-3 rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+            <div class="text-xs font-extrabold text-slate-900 mb-1">Previsione rapida</div>
+            <div class="text-sm text-slate-700">
+              <span class="font-extrabold text-slate-900">Esito:</span>
+              ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
             </div>
+            <div class="text-[12px] text-slate-500 mt-2">Apri la chat per l’analisi completa.</div>
           </div>
 
           <div class="mt-4 flex items-center justify-end">
@@ -774,7 +752,6 @@
       `;
     }
 
-    /* ===== MODAL ===== */
     function openModal(){
       $.overlay.classList.add("show");
       $.overlay.setAttribute("aria-hidden","false");
@@ -797,8 +774,6 @@
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
-
-      // soccer-only
       const byMode = (m)=> $.tabBtns.find(x=>x.dataset.mode===m);
       const btts = byMode("BTTS");
       const exact = byMode("EXACT");
@@ -816,7 +791,6 @@
       }
     }
 
-    /* ===== BETTY CALL ===== */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
       const ctxNote = hasCtx
@@ -826,21 +800,21 @@
       const modeRuleMap = {
         OPEN: "Analisi: sintetica ma motivata. Se un dato non c’è, dichiaralo.",
         TOTALS: "Under/Over: usa linea e quote disponibili; dai una previsione e motivazione.",
-        BTTS: "Gol/NoGol: usa trend se presente nel contesto; altrimenti basati su quote e spiega prudenza.",
+        BTTS: "Gol/NoGol: se non hai trend nel contesto, basati su quote h2h/totals e spiega prudenza.",
         EXACT: "Risultato esatto: proponi 1–2 score plausibili, con motivazione e rischio.",
         SCORER: "Marcatore: proponi 1–3 nomi SOLO se presenti nel contesto. Se non ci sono, dillo.",
-        OVER15: "Over 1.5: restituisci previsione e motivazione, e livello di rischio.",
-        OVER25: "Over 2.5: restituisci previsione e motivazione, e livello di rischio.",
-        OVER35: "Over 3.5: restituisci previsione e motivazione, e livello di rischio.",
-        FIRST_HALF: "Primo tempo: previsione su esito/goal nel 1T se possibile; altrimenti prudente.",
-        HTFT: "1T/FT: fornisci 1 scenario principale e 1 alternativo, spiegando la logica.",
-        DNB: "DNB: suggerisci quale squadra ha più valore e perché.",
+        OVER15: "Over 1.5: previsione + motivazione + rischio.",
+        OVER25: "Over 2.5: previsione + motivazione + rischio.",
+        OVER35: "Over 3.5: previsione + motivazione + rischio.",
+        FIRST_HALF: "Primo tempo: previsione prudente e motivata.",
+        HTFT: "1T/FT: 1 scenario principale + 1 alternativo, con rischio.",
+        DNB: "DNB: quale squadra ha più valore e perché.",
         DC: "Doppia chance: indica la doppia più coerente e motivala.",
-        CARDS: "Cartellini: se non hai contesto specifico, fallo prudente e dichiaralo.",
-        CORNERS: "Calci d’angolo: se non hai contesto specifico, fallo prudente e dichiaralo."
+        CARDS: "Cartellini: se non hai dati specifici, dichiaralo e resta prudente.",
+        CORNERS: "Calci d’angolo: se non hai dati specifici, dichiaralo e resta prudente."
       };
 
-      const modeRule = modeRuleMap[mode] || "Mercato: dai previsione + motivazione. Se un dato manca, dichiaralo.";
+      const modeRule = modeRuleMap[mode] || "Mercato: previsione + motivazione. Se un dato manca, dichiaralo.";
 
       return [
         "REGOLA ASSOLUTA:",
@@ -862,11 +836,9 @@
       const text =
         (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
       if (text) return text;
-
       const text2 =
         (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
       if (text2) return text2;
-
       try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
     }
 
@@ -924,12 +896,10 @@
       const th = addThinking();
       const ans = await askBetty("MARKET_PREDICTION");
       removeThinking(th);
-
       addBettyBubble(ans);
       chatHistory.push({ role:"assistant", content: ans });
     }
 
-    /* ===== PUBLIC ===== */
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -973,7 +943,6 @@
       await runMarketPrediction();
     }
 
-    /* ===== UI EVENTS ===== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -982,19 +951,14 @@
       if (custom) $.sportCustom.focus();
     });
 
-    // 👉 click sui mercati: fa SUBITO previsione (non “modalità attiva”)
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
-
         setMode(btn.dataset.mode);
-
-        // Se non c’è match selezionato, non spammare
         if (!currentEvent){
           addBettyBubble("Seleziona prima un match 😊");
           return;
         }
-
         await runMarketPrediction();
       });
     });
@@ -1026,7 +990,6 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
-    /* ===== INIT ===== */
     load();
   </script>
 </body>
