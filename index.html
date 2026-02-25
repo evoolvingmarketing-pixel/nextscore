@@ -330,6 +330,10 @@
         <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
         <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
         <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
+
+        <!-- ✅ NUOVI MERCATI -->
+        <button class="tabBtn" data-mode="AH" id="tabAH">Handicap</button>
+        <button class="tabBtn" data-mode="CARDS" id="tabCARDS">Cartellini</button>
       </div>
 
       <div class="modalBody">
@@ -403,6 +407,9 @@
       tabBTTS: el("tabBTTS"),
       tabEXACT: el("tabEXACT"),
       tabSCORER: el("tabSCORER"),
+
+      tabAH: el("tabAH"),
+      tabCARDS: el("tabCARDS"),
 
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
@@ -510,11 +517,7 @@
       }
       return null;
     }
-
     function extractLogosFromResolve(res){
-      // Supporta varie shape:
-      // - res.response[0] (API-Football classico)
-      // - res.fixture / res.data / res (custom hub)
       const root = (res?.response && Array.isArray(res.response) && res.response[0]) ? res.response[0] : (res || {});
       const leagueObj = root?.league || root?.fixture?.league || root?.data?.league || null;
       const teamsObj  = root?.teams  || root?.fixture?.teams  || root?.data?.teams  || null;
@@ -720,9 +723,7 @@
 
       const res = await hubResolve(home, away, dateStr);
 
-      // ✅ estraggo subito i loghi dalla risposta di resolve (API-Football)
       const logos = extractLogosFromResolve(res);
-
       const fixtureKey = res?.fixture_key || res?.fixtureKey || res?.fixture?.id || null;
 
       if (!res?.ok && !fixtureKey){
@@ -919,9 +920,15 @@
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
+
       $.tabBTTS.classList.toggle("hidden", !soccer);
       $.tabEXACT.classList.toggle("hidden", !soccer);
       $.tabSCORER.classList.toggle("hidden", !soccer);
+
+      // ✅ nuovi mercati solo soccer
+      $.tabAH.classList.toggle("hidden", !soccer);
+      $.tabCARDS.classList.toggle("hidden", !soccer);
+
       $.tabTOTALS.classList.remove("hidden");
 
       const active = $.tabBtns.find(b=>b.classList.contains("active"));
@@ -949,6 +956,19 @@
       if (mode === "SCORER"){
         return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
       }
+
+      // ✅ NUOVI MODE
+      if (mode === "AH"){
+        return `Dammi SUBITO una previsione Handicap (asiatico o europeo) per questo match. 
+Scegli UNA giocata principale con linea suggerita (es: -0.25 / +0.5 ecc.) e motivala con 3 punti basati su quote + contesto. 
+Poi proponi una alternativa più prudente. Chiudi con livello fiducia (basso/medio/alto).`;
+      }
+      if (mode === "CARDS"){
+        return `Dammi SUBITO una previsione Cartellini.
+Se nel contesto NON ci sono dati utili (arbitro, stile squadre, media cartellini), dillo chiaramente e proponi un mercato alternativo più solido.
+Se i dati ci sono: scegli UNA giocata principale (Over/Under linea consigliata) + 3 motivi, poi alternativa prudente + livello fiducia.`;
+      }
+
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
@@ -1071,7 +1091,6 @@
             setLogoNode($.mhLeagueLogo, lg.leagueName || "Campionato", lg.leagueLogo || null);
             $.mhLeagueName.textContent = lg.leagueName || "—";
           }else{
-            // fallback: non ho campionato dal resolve
             $.mhLeagueName.textContent = "—";
           }
         }
@@ -1104,7 +1123,7 @@
       if (custom) $.sportCustom.focus();
     });
 
-    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
+    /* ========= TAB CLICK: richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
