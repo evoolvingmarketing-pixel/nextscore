@@ -68,6 +68,7 @@
       overflow:hidden;
       flex:0 0 auto;
     }
+    .tlogo.sm{ width:26px; height:26px; }
     .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
     .tlogo.fallback{
       font-weight:900;
@@ -207,27 +208,6 @@
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
-    .dbg{
-      border:1px dashed rgba(2,6,23,.18);
-      border-radius:16px;
-      padding:12px;
-      background:#fff;
-    }
-    .dbg pre{
-      white-space:pre-wrap;
-      word-break:break-word;
-      font-size:12px;
-      line-height:1.35;
-      color:#0f172a;
-      max-height:220px;
-      overflow:auto;
-      margin-top:8px;
-      padding:10px;
-      border-radius:12px;
-      border:1px solid rgba(2,6,23,.10);
-      background:#f8fafc;
-    }
-
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
@@ -238,14 +218,18 @@
 <body>
   <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
     <header class="flex items-start md:items-center justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
-          NextScore <span class="text-amber-600">Match Center</span>
-        </h1>
-        <p class="text-sm md:text-base text-slate-600 mt-1">
-          Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-          <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
-        </p>
+      <div class="flex items-start gap-3">
+        <div id="leagueLogoTop" class="tlogo sm fallback" title="Campionato">🏆</div>
+
+        <div>
+          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+            NextScore <span class="text-amber-600">Match Center</span>
+          </h1>
+          <p class="text-sm md:text-base text-slate-600 mt-1">
+            Seleziona un match e leggi l’analisi di <strong>Betty</strong>
+            <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
+          </p>
+        </div>
       </div>
 
       <div class="text-xs text-slate-500 text-right">
@@ -253,21 +237,6 @@
         <div id="statusInfo">stato: pronto</div>
       </div>
     </header>
-
-    <section class="dbg mb-4">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="text-sm font-extrabold">Debug rapido</div>
-        <div class="flex flex-wrap gap-2">
-          <button class="btn" id="pingOdds">Ping get-odds</button>
-          <button class="btn" id="pingHub">Ping football-hub</button>
-          <button class="btn" id="pingBettyDirect">Ping betty diretto</button>
-        </div>
-      </div>
-      <pre id="dbgOut">—</pre>
-      <div class="text-[12px] text-slate-500 mt-2">
-        Se vedi errori CORS o “Failed to fetch”, il problema è l’origin (file:// o dominio non autorizzato).
-      </div>
-    </section>
 
     <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
       <div class="p-4 md:p-5">
@@ -335,7 +304,11 @@
           <div class="avatar" aria-hidden="true">🧙‍♀️</div>
 
           <div class="flex flex-col gap-1">
-            <div class="text-sm font-extrabold leading-tight">Betty</div>
+            <div class="text-sm font-extrabold leading-tight flex items-center gap-2">
+              <span>Betty</span>
+              <span class="chip" id="leagueChip" style="padding:6px 10px;">—</span>
+              <span id="leagueLogoInModal" class="tlogo sm fallback" title="Campionato">🏆</span>
+            </div>
 
             <div class="flex items-center gap-2">
               <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
@@ -437,10 +410,9 @@
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
 
-      dbgOut: el("dbgOut"),
-      pingOdds: el("pingOdds"),
-      pingHub: el("pingHub"),
-      pingBettyDirect: el("pingBettyDirect"),
+      leagueLogoTop: el("leagueLogoTop"),
+      leagueLogoInModal: el("leagueLogoInModal"),
+      leagueChip: el("leagueChip"),
     };
 
     let lastData = [];
@@ -451,6 +423,11 @@
 
     let currentContextBundle = null;
     const contextCache = new Map();
+
+    // cache loghi
+    const teamLogoCache = new Map();    // key: teamName -> url
+    const leagueLogoCache = new Map();  // key: sportKey -> url
+    const leagueNameCache = new Map();  // key: sportKey -> string
 
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
@@ -476,23 +453,13 @@
     function isSoccerSportKey(sk){
       return /^soccer_/i.test(String(sk||""));
     }
+
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
 
-    function safeJson(obj){
-      const s = JSON.stringify(obj || {});
-      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
-    }
-    function dbgWrite(obj){
-      try{
-        $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
-      }catch{
-        $.dbgOut.textContent = String(obj);
-      }
-    }
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
       const txt = await r.text().catch(()=> "");
@@ -506,36 +473,46 @@
       return json ?? txt;
     }
 
-    function teamLogoUrl(teamName){
+    function teamFallbackAvatarUrl(teamName){
       const name = String(teamName || "").trim();
       if (!name) return null;
       const q = encodeURIComponent(name);
       return `https://ui-avatars.com/api/?name=${q}&background=fff7ed&color=0f172a&rounded=true&bold=true&size=64`;
     }
-    function setLogoNode(node, teamName, logoUrl){
+
+    function setLogoNode(node, label, logoUrl){
       node.classList.remove("fallback");
       node.innerHTML = "";
-      const url = logoUrl || teamLogoUrl(teamName);
 
-      if (!url){
+      if (!logoUrl){
         node.classList.add("fallback");
-        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+        node.textContent = (label||"?").slice(0,1).toUpperCase();
         return;
       }
 
       const img = document.createElement("img");
-      img.alt = teamName || "logo";
-      img.src = url;
+      img.alt = label || "logo";
+      img.src = logoUrl;
       img.loading = "lazy";
       img.referrerPolicy = "no-referrer";
       img.onerror = () => {
         node.innerHTML = "";
         node.classList.add("fallback");
-        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+        node.textContent = (label||"?").slice(0,1).toUpperCase();
       };
       node.appendChild(img);
     }
 
+    function setLeagueLogoForUI(sportKey){
+      const url = leagueLogoCache.get(sportKey) || null;
+      const name = leagueNameCache.get(sportKey) || sportKey;
+
+      $.leagueChip.textContent = name || "—";
+      setLogoNode($.leagueLogoTop, "🏆", url);
+      setLogoNode($.leagueLogoInModal, "🏆", url);
+    }
+
+    /* ===== CHAT UI ===== */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -585,6 +562,7 @@
       if (n) n.remove();
     }
 
+    /* ===== ODDS NORMALIZATION ===== */
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -671,6 +649,7 @@
       };
     }
 
+    /* ===== API ===== */
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
@@ -709,6 +688,60 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
+
+    function pickFirstString(obj, paths){
+      for (const p of paths){
+        try{
+          const parts = p.split(".");
+          let cur = obj;
+          for (const k of parts){
+            if (cur == null) { cur = null; break; }
+            cur = cur[k];
+          }
+          if (typeof cur === "string" && cur.trim()) return cur.trim();
+        }catch{}
+      }
+      return null;
+    }
+
+    function harvestLogosFromBundle(bundle, sportKey, homeName, awayName){
+      // prova a trovare loghi in vari possibili posti
+      const ctx = bundle?.context || null;
+      const ctx2 = bundle?.context?.context || null;
+      const res = bundle?.resolve || null;
+
+      const homeLogo =
+        pickFirstString(ctx2, ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]) ||
+        pickFirstString(ctx,  ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]) ||
+        pickFirstString(res,  ["teams.home.logo","home.logo","home_team.logo","homeLogo","home_logo"]);
+
+      const awayLogo =
+        pickFirstString(ctx2, ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]) ||
+        pickFirstString(ctx,  ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]) ||
+        pickFirstString(res,  ["teams.away.logo","away.logo","away_team.logo","awayLogo","away_logo"]);
+
+      const leagueLogo =
+        pickFirstString(ctx2, ["league.logo","competition.logo","tournament.logo","leagueLogo"]) ||
+        pickFirstString(ctx,  ["league.logo","competition.logo","tournament.logo","leagueLogo"]) ||
+        pickFirstString(res,  ["league.logo","competition.logo","tournament.logo","leagueLogo"]);
+
+      const leagueName =
+        pickFirstString(ctx2, ["league.name","competition.name","tournament.name","league"]) ||
+        pickFirstString(ctx,  ["league.name","competition.name","tournament.name","league"]) ||
+        pickFirstString(res,  ["league.name","competition.name","tournament.name","league"]);
+
+      if (homeName){
+        if (homeLogo) teamLogoCache.set(homeName, homeLogo);
+      }
+      if (awayName){
+        if (awayLogo) teamLogoCache.set(awayName, awayLogo);
+      }
+      if (sportKey){
+        if (leagueLogo) leagueLogoCache.set(sportKey, leagueLogo);
+        if (leagueName) leagueNameCache.set(sportKey, leagueName);
+      }
+    }
+
     async function getContextBundleForEvent(ev){
       const home = ev?.home_team;
       const away = ev?.away_team;
@@ -762,6 +795,9 @@
       $.chipContext.textContent = "context: —";
       hideNotice();
 
+      // aggiorna subito UI campionato con eventuale cache
+      setLeagueLogoForUI(chosenSport());
+
       try{
         const data = await fetchEvents();
 
@@ -796,16 +832,11 @@
 
         renderCards(lastData);
         $.status.textContent = "stato: ok";
-      }catch(e){
-        const dbg = e?._debug || null;
-        if (dbg){
-          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
-          dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
-        }else{
-          showNotice(`❌ get-odds fallito: ${String(e?.message || e)}. Vedi Debug Panel.`);
-          dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
-        }
 
+        // prefetch loghi per i primi 12 match
+        prefetchLogosForEvents(lastData.slice(0,12)).catch(()=>{});
+      }catch(e){
+        showNotice(`❌ get-odds fallito: ${String(e?.message || e)}.`);
         setDemoMode(true);
         lastData = buildDemoEvents();
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
@@ -814,17 +845,50 @@
       }
     }
 
+    async function prefetchLogosForEvents(events){
+      const sportKey = chosenSport();
+
+      for (const ev of events){
+        try{
+          const bundle = await getContextBundleForEvent(ev);
+          if (!bundle) continue;
+
+          harvestLogosFromBundle(bundle, sportKey, ev.home_team, ev.away_team);
+          setLeagueLogoForUI(sportKey);
+
+          const hUrl = teamLogoCache.get(ev.home_team) || null;
+          const aUrl = teamLogoCache.get(ev.away_team) || null;
+
+          const hNode = document.querySelector(`[data-teamlogo="home:${ev.id}"]`);
+          const aNode = document.querySelector(`[data-teamlogo="away:${ev.id}"]`);
+
+          if (hNode) setLogoNode(hNode, ev.home_team, hUrl || teamFallbackAvatarUrl(ev.home_team));
+          if (aNode) setLogoNode(aNode, ev.away_team, aUrl || teamFallbackAvatarUrl(ev.away_team));
+        }catch{}
+      }
+    }
+
     function renderCards(events){
       $.cards.innerHTML = events.map(renderCard).join("");
+
+      // fallback immediato: avatar “carino” finché non arrivano i loghi reali
+      for (const ev of events){
+        const hNode = document.querySelector(`[data-teamlogo="home:${ev.id}"]`);
+        const aNode = document.querySelector(`[data-teamlogo="away:${ev.id}"]`);
+        if (hNode) setLogoNode(hNode, ev.home_team, teamFallbackAvatarUrl(ev.home_team));
+        if (aNode) setLogoNode(aNode, ev.away_team, teamFallbackAvatarUrl(ev.away_team));
+      }
+    }
+
+    function safeJson(obj){
+      const s = JSON.stringify(obj || {});
+      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
 
     function renderCard(ev){
       const when = fmtDate(ev.commence_time);
-
       const h = esc(ev.home_team||"");
       const a = esc(ev.away_team||"");
-      const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
-      const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
       const totals = Array.isArray(ev.totals) ? ev.totals : [];
@@ -853,16 +917,10 @@
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
-            <div class="tlogo" title="${h}">
-              <img src="${esc(teamLogoUrl(ev.home_team) || '')}" alt="${h}" loading="lazy" referrerpolicy="no-referrer"
-                   onerror="this.remove(); this.parentElement.textContent='${hInitial}'">
-            </div>
+            <div class="tlogo" data-teamlogo="home:${esc(ev.id)}" title="${h}">H</div>
             <div class="text-sm font-extrabold text-slate-900">${h}</div>
             <span class="vsPill">VS</span>
-            <div class="tlogo" title="${a}">
-              <img src="${esc(teamLogoUrl(ev.away_team) || '')}" alt="${a}" loading="lazy" referrerpolicy="no-referrer"
-                   onerror="this.remove(); this.parentElement.textContent='${aInitial}'">
-            </div>
+            <div class="tlogo" data-teamlogo="away:${esc(ev.id)}" title="${a}">A</div>
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
@@ -924,7 +982,6 @@
       }
     }
 
-    /* ====== FIX QUI: prompt “strong” che obbliga la previsione subito ====== */
     function buildStrongMarketRequest(mode, ev){
       const line = ev?.totals?.[0]?.point ?? null;
       const hasLine = (typeof line === "number");
@@ -1018,8 +1075,6 @@
         if (!text) throw new Error("Risposta vuota da Betty");
         return text;
       }catch(e){
-        const dbg = e?._debug || { where:"betty /chat", error:String(e?.message || e) };
-        dbgWrite({ where:"askBetty", ...dbg });
         return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
       }
     }
@@ -1032,14 +1087,18 @@
       const sportKey = chosenSport();
       setTabsForSport(sportKey);
 
+      setLeagueLogoForUI(sportKey);
+
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
       $.chatSub.textContent = fmtDate(ev.commence_time);
       $.chatFeed.innerHTML = "";
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoNode($.mhHomeLogo, ev.home_team, null);
-      setLogoNode($.mhAwayLogo, ev.away_team, null);
+
+      // fallback subito (avatar) in header
+      setLogoNode($.mhHomeLogo, ev.home_team, teamFallbackAvatarUrl(ev.home_team));
+      setLogoNode($.mhAwayLogo, ev.away_team, teamFallbackAvatarUrl(ev.away_team));
 
       setMode("OPEN");
       openModal();
@@ -1050,6 +1109,16 @@
       try{
         const bundle = await getContextBundleForEvent(ev);
         currentContextBundle = bundle;
+
+        // prova ad estrarre loghi reali
+        harvestLogosFromBundle(bundle, sportKey, ev.home_team, ev.away_team);
+        setLeagueLogoForUI(sportKey);
+
+        const hReal = teamLogoCache.get(ev.home_team) || null;
+        const aReal = teamLogoCache.get(ev.away_team) || null;
+
+        if (hReal) setLogoNode($.mhHomeLogo, ev.home_team, hReal);
+        if (aReal) setLogoNode($.mhAwayLogo, ev.away_team, aReal);
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
@@ -1077,9 +1146,11 @@
       const custom = $.sport.value === "custom";
       $.sportCustom.classList.toggle("hidden", !custom);
       if (custom) $.sportCustom.focus();
+
+      // aggiorna subito logo lega con cache (se c'è)
+      setLeagueLogoForUI(chosenSport());
     });
 
-    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
@@ -1093,7 +1164,6 @@
 
         const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
 
-        // opzionale: non spammo la chat con "(richiesta rapida)" ogni volta, faccio solo una riga elegante
         addUserBubble(btn.textContent);
         chatHistory.push({ role:"user", content: strong });
 
@@ -1133,31 +1203,8 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
-    $.pingOdds.addEventListener("click", async ()=>{
-      try{
-        const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"get-odds /", ok });
-      }catch(e){
-        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-    $.pingHub.addEventListener("click", async ()=>{
-      try{
-        const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"football-hub /", ok });
-      }catch(e){
-        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-    $.pingBettyDirect.addEventListener("click", async ()=>{
-      try{
-        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
-        dbgWrite({ ping:"betty diretto /chat", res });
-      }catch(e){
-        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-
+    // init
+    setLeagueLogoForUI(chosenSport());
     load();
   </script>
 </body>
