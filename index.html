@@ -254,20 +254,7 @@
       </div>
     </header>
 
-    <section class="dbg mb-4">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="text-sm font-extrabold">Debug rapido</div>
-        <div class="flex flex-wrap gap-2">
-          <button class="btn" id="pingOdds">Ping get-odds</button>
-          <button class="btn" id="pingHub">Ping football-hub</button>
-          <button class="btn" id="pingBettyDirect">Ping betty diretto</button>
-        </div>
-      </div>
-      <pre id="dbgOut">—</pre>
-      <div class="text-[12px] text-slate-500 mt-2">
-        Se vedi errori CORS o “Failed to fetch”, il problema è l’origin (file:// o dominio non autorizzato).
-      </div>
-    </section>
+    <!-- ✅ DEBUG RIMOSSO -->
 
     <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
       <div class="p-4 md:p-5">
@@ -436,11 +423,6 @@
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
-
-      dbgOut: el("dbgOut"),
-      pingOdds: el("pingOdds"),
-      pingHub: el("pingHub"),
-      pingBettyDirect: el("pingBettyDirect"),
     };
 
     let lastData = [];
@@ -487,11 +469,8 @@
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
     function dbgWrite(obj){
-      try{
-        $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
-      }catch{
-        $.dbgOut.textContent = String(obj);
-      }
+      // ✅ Debug panel rimosso: mantenuto NO-OP per non toccare altra logica
+      return;
     }
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
@@ -799,10 +778,10 @@
       }catch(e){
         const dbg = e?._debug || null;
         if (dbg){
-          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
+          showNotice(`❌ get-odds fallito: ${e.message}.`);
           dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
         }else{
-          showNotice(`❌ get-odds fallito: ${String(e?.message || e)}. Vedi Debug Panel.`);
+          showNotice(`❌ get-odds fallito: ${String(e?.message || e)}.`);
           dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
         }
 
@@ -1093,7 +1072,6 @@
 
         const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
 
-        // opzionale: non spammo la chat con "(richiesta rapida)" ogni volta, faccio solo una riga elegante
         addUserBubble(btn.textContent);
         chatHistory.push({ role:"user", content: strong });
 
@@ -1132,31 +1110,6 @@
     $.closeModal.addEventListener("click", closeModal);
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
-
-    $.pingOdds.addEventListener("click", async ()=>{
-      try{
-        const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"get-odds /", ok });
-      }catch(e){
-        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-    $.pingHub.addEventListener("click", async ()=>{
-      try{
-        const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"football-hub /", ok });
-      }catch(e){
-        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
-    $.pingBettyDirect.addEventListener("click", async ()=>{
-      try{
-        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
-        dbgWrite({ ping:"betty diretto /chat", res });
-      }catch(e){
-        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
-      }
-    });
 
     load();
   </script>
