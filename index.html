@@ -366,7 +366,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Sai gli infortunati?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Contro chi gioca l'Inter?' )"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -396,7 +396,7 @@
       });
       return [
         mk("demo_1","Arsenal","Liverpool",90),
-        mk("demo_2","Inter","Juventus",140),
+        mk("demo_2","Inter Milan","Juventus",140),
         mk("demo_3","Real Madrid","Barcelona",210),
         mk("demo_4","PSG","Marseille",260),
       ];
@@ -585,6 +585,112 @@
       if (n) n.remove();
     }
 
+    /* ============================
+       SMART ROUTER (frontend only)
+       ============================ */
+
+    function norm(str){
+      return String(str||"")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/[^a-z0-9\s]/g," ")
+        .replace(/\s+/g," ")
+        .trim();
+    }
+
+    function tokenSet(str){
+      const t = norm(str).split(" ").filter(Boolean);
+      return new Set(t);
+    }
+
+    function getAllTeamsFromLoadedEvents(){
+      const set = new Map(); // norm -> original
+      for (const ev of (Array.isArray(lastData) ? lastData : [])){
+        if (ev?.home_team){
+          const k = norm(ev.home_team);
+          if (!set.has(k)) set.set(k, ev.home_team);
+        }
+        if (ev?.away_team){
+          const k = norm(ev.away_team);
+          if (!set.has(k)) set.set(k, ev.away_team);
+        }
+      }
+      return Array.from(set.entries()).map(([k,original])=>({ key:k, name:original }));
+    }
+
+    // Prova a capire se il testo cita una squadra presente in lista
+    function detectTeamMention(userText){
+      const textN = norm(userText);
+      if (!textN) return null;
+
+      const teams = getAllTeamsFromLoadedEvents();
+      if (!teams.length) return null;
+
+      // euristica: match più lungo vince (aiuta Inter Milan vs Milan)
+      const sorted = teams.sort((a,b)=> b.key.length - a.key.length);
+
+      // 1) match per frase completa
+      for (const t of sorted){
+        // boundaries " word "
+        const pattern = new RegExp(`(^|\\s)${t.key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}(\\s|$)`, "i");
+        if (pattern.test(textN)) return t.name;
+      }
+
+      // 2) match per singolo token “forte” (min 4 chars)
+      const tokens = textN.split(" ").filter(x=>x.length>=4);
+      for (const tok of tokens){
+        // se tok è "milan", preferisco "AC Milan" rispetto a "Inter Milan" se presente,
+        // ma se tok è "inter" preferisco "Inter Milan"
+        const cand = sorted.filter(t=>t.key.split(" ").includes(tok));
+        if (cand.length){
+          // tie-break: se l'utente ha scritto "inter" -> prendi team con token inter
+          if (tok === "inter"){
+            const exact = cand.find(x=>x.key.split(" ").includes("inter"));
+            if (exact) return exact.name;
+          }
+          if (tok === "milan"){
+            // preferisco AC Milan / Milan prima di Inter Milan
+            const prefer = cand.find(x=> x.key.startsWith("ac milan") || x.key === "milan");
+            if (prefer) return prefer.name;
+          }
+          return cand[0].name;
+        }
+      }
+
+      return null;
+    }
+
+    function findEventByTeam(teamName){
+      const tn = norm(teamName);
+      for (const ev of (Array.isArray(lastData) ? lastData : [])){
+        if (!ev) continue;
+        if (norm(ev.home_team) === tn || norm(ev.away_team) === tn) return ev;
+      }
+      return null;
+    }
+
+    function findEventByTwoTeams(teamA, teamB){
+      const a = norm(teamA), b = norm(teamB);
+      for (const ev of (Array.isArray(lastData) ? lastData : [])){
+        const h = norm(ev.home_team), aw = norm(ev.away_team);
+        if ((h===a && aw===b) || (h===b && aw===a)) return ev;
+      }
+      return null;
+    }
+
+    function isQuestionAboutNextMatch(text){
+      const t = norm(text);
+      return /(contro chi gioca|prossima partita|chi gioca|quando gioca)/i.test(t);
+    }
+
+    function isQuestionAboutFullStandings(text){
+      const t = norm(text);
+      return /(classifica di tutte|tutta la classifica|classifica completa|tutta la serie a)/i.test(t);
+    }
+
+    /* ============================
+       ODDS normalize
+       ============================ */
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -924,7 +1030,6 @@
       }
     }
 
-    /* ====== “strong” richieste tab ====== */
     function buildStrongMarketRequest(mode, ev){
       const line = ev?.totals?.[0]?.point ?? null;
       const hasLine = (typeof line === "number");
@@ -941,39 +1046,64 @@
         return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
       }
       if (mode === "SCORER"){
-        return `Dammi SUBITO una lettura marcatori: se nel contesto ci sono nomi/goal usali. Se NON ci sono, NON inventare: fai una risposta utile e “umana” (niente frasi robotiche), spiega cosa manca e proponi un’alternativa prudente (es. mercati 1X2/Over-Under o “marcatore: no bet”).`;
+        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
       }
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
-    /* ========= FIX PRINCIPALE: prompt umano + chat libera ========= */
+    // Mappa EN->IT per tipologie infortunio (solo traduzione, non invenzione)
+    const INJURY_MAP = {
+      "thigh injury": "infortunio alla coscia",
+      "knee injury": "infortunio al ginocchio",
+      "finger injury": "infortunio al dito",
+      "groin injury": "infortunio all'inguine",
+      "injury": "infortunio"
+    };
+
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
+      const ctxNote = hasCtx
+        ? "Hai un CONTESTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo SOLO se presente."
+        : "Non hai contesto affidabile: NON inventare dati (classifica, forma, indisponibili, marcatori).";
+
+      const styleNote = [
+        "TONO:",
+        "- Se un dato non è disponibile, NON dire 'Questo dato non è disponibile nel contesto' in modo freddo.",
+        "- Usa una frase umana e simpatica (es: 'Ops, questo dettaglio non ce l’ho sotto mano 😅').",
+        "- Poi proponi cosa puoi fare: (a) analisi basata sulle quote/mercato (b) chiedere quale dato vuole (c) suggerire alternative."
+      ].join("\n");
+
+      const injuryNote = [
+        "INFORTUNI:",
+        "- Se citi una tipologia di infortunio e ti arriva in inglese, TRADUCILA in italiano.",
+        "- Esempi di traduzione: " + Object.entries(INJURY_MAP).map(([k,v])=>`'${k}'→'${v}'`).join(", ") + "."
+      ].join("\n");
+
+      const freedomNote = [
+        "CHAT LIBERA:",
+        "- Rispondi anche a domande NON legate al tab/mercato attivo (es: 'contro chi gioca l’Inter?', 'classifica', 'infortunati').",
+        "- Se la domanda è più ampia (es: classifica completa), spiega con tatto cosa puoi fare ORA e cosa serve per farla completa."
+      ].join("\n");
 
       return [
-        "SEI BETTY (tono umano, caldo, non robotico).",
-        "",
-        "REGOLE DATI (anti-hallucination):",
-        "- NON inventare mai: infortunati, squalificati, marcatori, forma, classifica, H2H, ultimi risultati.",
+        "REGOLA ASSOLUTA:",
+        "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
-        "- Se un dato specifico non c’è: NON usare frasi fredde tipo 'dato non disponibile nel contesto'.",
-        "- Invece: ammetti con simpatia (es. 'Ops, non ho la lista aggiornata qui 😅') e proponi un'alternativa utile.",
-        "",
-        "CHAT LIBERA (fondamentale):",
-        "- La domanda dell'utente può NON essere legata al tab aperto o alle quote. RISpondi comunque.",
-        "- Se l'utente chiede: infortunati, squalifiche, probabili formazioni, news, ecc: rispondi nel limite dei dati.",
-        "- Se non puoi verificare, dai una risposta utile: cosa controllare, come impatta sul match in modo GENERALE, e chiedi 1 info per completare (es. 'mi dai i nomi assenti?').",
+        "- Se manca un dato, dillo in modo umano e proponi alternative.",
         "",
         "OBBLIGO DI OUTPUT:",
         "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
-        "- Rispondi subito con contenuto concreto.",
-        "- Se è una richiesta betting: (1) Giocata principale + 2-3 motivi (2) Alternativa prudente (3) Fiducia basso/medio/alto.",
-        "- Se è una richiesta non betting: risposta chiara e utile + 1 domanda breve per continuare.",
+        "- Dai SUBITO una risposta utile.",
         "",
-        `STATO CONTESTO: ${hasCtx ? "OK (usa i dati presenti)" : "MANCANTE (non inventare, sii utile e umano)"}`,
-        `TAB ATTIVO (puoi ignorarlo se la domanda è generale): ${String(mode||"OPEN")}`,
+        styleNote,
         "",
-        "DOMANDA UTENTE:",
+        injuryNote,
+        "",
+        freedomNote,
+        "",
+        ctxNote,
+        "",
+        "RICHIESTA UTENTE:",
         userText || ""
       ].join("\n");
     }
@@ -1031,44 +1161,48 @@
       }
     }
 
-    window.openBetty = async function(ev){
+    async function switchToEvent(ev, reasonLabel){
       currentEvent = ev;
-      chatHistory = [];
       currentContextBundle = null;
-
-      const sportKey = chosenSport();
-      setTabsForSport(sportKey);
 
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
       $.chatSub.textContent = fmtDate(ev.commence_time);
-      $.chatFeed.innerHTML = "";
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
       setLogoNode($.mhHomeLogo, ev.home_team, null);
       setLogoNode($.mhAwayLogo, ev.away_team, null);
 
-      setMode("OPEN");
-      openModal();
-
-      addBettyBubble("Ok, aggancio il contesto del match…");
       $.chipContext.textContent = "context: carico…";
 
+      addBettyBubble(reasonLabel || "Ok, cambio match e aggancio il contesto…");
       try{
         const bundle = await getContextBundleForEvent(ev);
         currentContextBundle = bundle;
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
-          addBettyBubble("Perfetto ✅ Contesto agganciato.");
+          addBettyBubble("Perfetto ✅ Contesto aggiornato.");
         }else{
           $.chipContext.textContent = "context: NO";
-          addWarn(`Non aggancio il contesto. Motivo: ${bundle?.reason || "unknown"}`);
+          addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
         }
       }catch(err){
         $.chipContext.textContent = "context: NO";
         addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
+    }
+
+    window.openBetty = async function(ev){
+      chatHistory = [];
+      $.chatFeed.innerHTML = "";
+
+      const sportKey = chosenSport();
+      setTabsForSport(sportKey);
+      setMode("OPEN");
+      openModal();
+
+      await switchToEvent(ev, "Ok, aggancio il contesto del match…");
 
       const th = addThinking();
       const opening = await askBetty("Dammi SUBITO una analisi completa e una previsione principale + alternativa prudente.");
@@ -1098,7 +1232,6 @@
         }
 
         const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
-
         addUserBubble(btn.textContent);
         chatHistory.push({ role:"user", content: strong });
 
@@ -1111,6 +1244,38 @@
       });
     });
 
+    async function handleSmartUserMessage(t){
+      // 1) Se chiede “classifica completa”, senza endpoint dedicato: rispondo bene ma senza inventare
+      if (isQuestionAboutFullStandings(t)){
+        // Non cambiamo match, ma prepariamo Betty a rispondere bene (senza inventare)
+        return { routed:false, note:"" };
+      }
+
+      // 2) Se cita una squadra, provo a switchare al match relativo SE presente in lastData
+      const mentionedTeam = detectTeamMention(t);
+
+      if (mentionedTeam){
+        const ev = findEventByTeam(mentionedTeam);
+        if (ev && (!currentEvent || ev.id !== currentEvent.id)){
+          await switchToEvent(ev, `Ti seguo 👍 Parliamo di ${ev.home_team} vs ${ev.away_team}.`);
+          return { routed:true, note:`[route->${ev.home_team} vs ${ev.away_team}]` };
+        }
+      }
+
+      // 3) “Contro chi gioca l’Inter?”: se l’Inter compare in uno dei match caricati, switcha
+      if (isQuestionAboutNextMatch(t)){
+        // se l’utente ha scritto una squadra, usala, altrimenti prova "inter" come euristica
+        const team = mentionedTeam || "Inter";
+        const ev = findEventByTeam(team);
+        if (ev && (!currentEvent || ev.id !== currentEvent.id)){
+          await switchToEvent(ev, `Ok! Ho trovato un match in lista per ${team}.`);
+          return { routed:true, note:`[route->${ev.home_team} vs ${ev.away_team}]` };
+        }
+      }
+
+      return { routed:false, note:"" };
+    }
+
     $.sendBtn.addEventListener("click", async ()=>{
       const t = $.chatInput.value.trim();
       if (!t) return;
@@ -1118,6 +1283,9 @@
 
       addUserBubble(t);
       chatHistory.push({ role:"user", content: t });
+
+      // SMART ROUTING prima di chiedere a Betty
+      await handleSmartUserMessage(t);
 
       const th = addThinking();
       const ans = await askBetty(t);
