@@ -207,6 +207,27 @@
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
+    .dbg{
+      border:1px dashed rgba(2,6,23,.18);
+      border-radius:16px;
+      padding:12px;
+      background:#fff;
+    }
+    .dbg pre{
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-size:12px;
+      line-height:1.35;
+      color:#0f172a;
+      max-height:220px;
+      overflow:auto;
+      margin-top:8px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(2,6,23,.10);
+      background:#f8fafc;
+    }
+
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
@@ -311,12 +332,6 @@
               <div id="mhAwayName" class="text-xs font-extrabold text-slate-800">—</div>
             </div>
 
-            <!-- ✅ Campionato (logo + nome) -->
-            <div class="flex items-center gap-2 mt-1">
-              <div id="mhLeagueLogo" class="tlogo fallback" title="Campionato" style="width:28px;height:28px;">🏆</div>
-              <div id="mhLeagueName" class="text-xs font-bold text-slate-600">—</div>
-            </div>
-
             <div id="chatSub" class="text-xs text-slate-500">Seleziona un match per iniziare</div>
           </div>
         </div>
@@ -330,10 +345,6 @@
         <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
         <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
         <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
-
-        <!-- ✅ NUOVI MERCATI -->
-        <button class="tabBtn" data-mode="AH" id="tabAH">Handicap</button>
-        <button class="tabBtn" data-mode="CARDS" id="tabCARDS">Cartellini</button>
       </div>
 
       <div class="modalBody">
@@ -408,16 +419,10 @@
       tabEXACT: el("tabEXACT"),
       tabSCORER: el("tabSCORER"),
 
-      tabAH: el("tabAH"),
-      tabCARDS: el("tabCARDS"),
-
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
       mhHomeName: el("mhHomeName"),
       mhAwayName: el("mhAwayName"),
-
-      mhLeagueLogo: el("mhLeagueLogo"),
-      mhLeagueName: el("mhLeagueName"),
     };
 
     let lastData = [];
@@ -463,10 +468,10 @@
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
-
-    // ✅ Debug NO-OP (lasciato apposta per non toccare altra logica)
-    function dbgWrite(obj){ return; }
-
+    function dbgWrite(obj){
+      // ✅ Debug panel rimosso: mantenuto NO-OP per non toccare altra logica
+      return;
+    }
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
       const txt = await r.text().catch(()=> "");
@@ -508,30 +513,6 @@
         node.textContent = (teamName||"?").slice(0,1).toUpperCase();
       };
       node.appendChild(img);
-    }
-
-    /* ====== LOGHI: estrazione robusta dalla risposta /resolve (API-Football) ====== */
-    function pickFirst(...vals){
-      for (const v of vals){
-        if (typeof v === "string" && v.trim()) return v.trim();
-      }
-      return null;
-    }
-    function extractLogosFromResolve(res){
-      const root = (res?.response && Array.isArray(res.response) && res.response[0]) ? res.response[0] : (res || {});
-      const leagueObj = root?.league || root?.fixture?.league || root?.data?.league || null;
-      const teamsObj  = root?.teams  || root?.fixture?.teams  || root?.data?.teams  || null;
-
-      const homeObj = teamsObj?.home || teamsObj?.Home || null;
-      const awayObj = teamsObj?.away || teamsObj?.Away || null;
-
-      const homeLogo   = pickFirst(homeObj?.logo, root?.home_logo, root?.homeLogo);
-      const awayLogo   = pickFirst(awayObj?.logo, root?.away_logo, root?.awayLogo);
-      const leagueLogo = pickFirst(leagueObj?.logo, root?.league_logo, root?.leagueLogo);
-
-      const leagueName = pickFirst(leagueObj?.name, root?.league_name, root?.leagueName);
-
-      return { homeLogo, awayLogo, leagueLogo, leagueName };
     }
 
     function addBettyBubble(text){
@@ -716,24 +697,16 @@
       if (contextCache.has(key)) return contextCache.get(key);
 
       if (isDemoMode){
-        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_key:null, logos:null };
+        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_key:null };
         contextCache.set(key, bundle);
         return bundle;
       }
 
       const res = await hubResolve(home, away, dateStr);
+      const fixtureKey = res?.fixture_key || null;
 
-      const logos = extractLogosFromResolve(res);
-      const fixtureKey = res?.fixture_key || res?.fixtureKey || res?.fixture?.id || null;
-
-      if (!res?.ok && !fixtureKey){
-        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null, logos };
-        contextCache.set(key, bundle);
-        return bundle;
-      }
-
-      if (!fixtureKey){
-        const bundle = { ok:false, reason:"resolve_no_fixture_key", resolve:res || null, context:null, fixture_key:null, logos };
+      if (!res?.ok || !fixtureKey){
+        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null };
         contextCache.set(key, bundle);
         return bundle;
       }
@@ -748,8 +721,7 @@
         reason: ctx?.ok ? "ok" : "context_not_ok",
         resolve: res,
         context: ctx,
-        fixture_key: fixtureKey,
-        logos
+        fixture_key: fixtureKey
       };
 
       contextCache.set(key, bundle);
@@ -920,15 +892,9 @@
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
-
       $.tabBTTS.classList.toggle("hidden", !soccer);
       $.tabEXACT.classList.toggle("hidden", !soccer);
       $.tabSCORER.classList.toggle("hidden", !soccer);
-
-      // ✅ nuovi mercati solo soccer
-      $.tabAH.classList.toggle("hidden", !soccer);
-      $.tabCARDS.classList.toggle("hidden", !soccer);
-
       $.tabTOTALS.classList.remove("hidden");
 
       const active = $.tabBtns.find(b=>b.classList.contains("active"));
@@ -956,19 +922,6 @@
       if (mode === "SCORER"){
         return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
       }
-
-      // ✅ NUOVI MODE
-      if (mode === "AH"){
-        return `Dammi SUBITO una previsione Handicap (asiatico o europeo) per questo match. 
-Scegli UNA giocata principale con linea suggerita (es: -0.25 / +0.5 ecc.) e motivala con 3 punti basati su quote + contesto. 
-Poi proponi una alternativa più prudente. Chiudi con livello fiducia (basso/medio/alto).`;
-      }
-      if (mode === "CARDS"){
-        return `Dammi SUBITO una previsione Cartellini.
-Se nel contesto NON ci sono dati utili (arbitro, stile squadre, media cartellini), dillo chiaramente e proponi un mercato alternativo più solido.
-Se i dati ci sono: scegli UNA giocata principale (Over/Under linea consigliata) + 3 motivi, poi alternativa prudente + livello fiducia.`;
-      }
-
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
@@ -1067,10 +1020,6 @@ Se i dati ci sono: scegli UNA giocata principale (Over/Under linea consigliata) 
       setLogoNode($.mhHomeLogo, ev.home_team, null);
       setLogoNode($.mhAwayLogo, ev.away_team, null);
 
-      // reset campionato
-      if ($.mhLeagueName) $.mhLeagueName.textContent = "—";
-      if ($.mhLeagueLogo) setLogoNode($.mhLeagueLogo, "Campionato", null);
-
       setMode("OPEN");
       openModal();
 
@@ -1080,20 +1029,6 @@ Se i dati ci sono: scegli UNA giocata principale (Over/Under linea consigliata) 
       try{
         const bundle = await getContextBundleForEvent(ev);
         currentContextBundle = bundle;
-
-        // ✅ set loghi da resolve (API-Football) se presenti
-        const lg = bundle?.logos || {};
-        if (lg.homeLogo) setLogoNode($.mhHomeLogo, ev.home_team, lg.homeLogo);
-        if (lg.awayLogo) setLogoNode($.mhAwayLogo, ev.away_team, lg.awayLogo);
-
-        if ($.mhLeagueLogo && $.mhLeagueName){
-          if (lg.leagueLogo || lg.leagueName){
-            setLogoNode($.mhLeagueLogo, lg.leagueName || "Campionato", lg.leagueLogo || null);
-            $.mhLeagueName.textContent = lg.leagueName || "—";
-          }else{
-            $.mhLeagueName.textContent = "—";
-          }
-        }
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
@@ -1123,7 +1058,7 @@ Se i dati ci sono: scegli UNA giocata principale (Over/Under linea consigliata) 
       if (custom) $.sportCustom.focus();
     });
 
-    /* ========= TAB CLICK: richiesta forte immediata ========= */
+    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
