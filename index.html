@@ -67,8 +67,12 @@
       background:#fff;
       overflow:hidden;
       flex:0 0 auto;
+    }
+    .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
+    .tlogo.fallback{
       font-weight:900;
       color:#0f172a;
+      background:#f8fafc;
     }
     .vsPill{
       padding:4px 10px;
@@ -250,7 +254,6 @@
       </div>
     </header>
 
-    <!-- DEBUG PANEL -->
     <section class="dbg mb-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="text-sm font-extrabold">Debug rapido</div>
@@ -325,7 +328,6 @@
     <section id="cards" class="mt-5 grid gap-4 md:grid-cols-2"></section>
   </div>
 
-  <!-- CHAT MODAL -->
   <div id="modalOverlay" class="modalOverlay" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Chat Betty">
       <div class="modalHeader">
@@ -336,10 +338,10 @@
             <div class="text-sm font-extrabold leading-tight">Betty</div>
 
             <div class="flex items-center gap-2">
-              <div id="mhHomeLogo" class="tlogo" title="Home">H</div>
+              <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
               <div id="mhHomeName" class="text-xs font-extrabold text-slate-800">—</div>
               <span class="vsPill">VS</span>
-              <div id="mhAwayLogo" class="tlogo" title="Away">A</div>
+              <div id="mhAwayLogo" class="tlogo fallback" title="Away">A</div>
               <div id="mhAwayName" class="text-xs font-extrabold text-slate-800">—</div>
             </div>
 
@@ -371,14 +373,11 @@
   </div>
 
   <script>
-    /* ===== CONFIG ===== */
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
-    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app"; // diretto
-
+    const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
     const MAX_COUNT = 100;
 
-    /* ===== DEMO DATA (fallback) ===== */
     function buildDemoEvents(){
       const now = Date.now();
       const mk = (id, home, away, mins) => ({
@@ -387,12 +386,12 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name:"Home", prob: 48.5, odds: 1.90 },
-          { name:"Draw", prob: 26.0, odds: 3.40 },
-          { name:"Away", prob: 25.5, odds: 4.10 },
+          { name:"Home", prob: null, odds: 1.90 },
+          { name:"Draw", prob: null, odds: 3.40 },
+          { name:"Away", prob: null, odds: 4.20 },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:52.0, odds:1.85}, {name:"Under", prob:48.0, odds:1.95} ] }
+          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] }
         ],
       });
       return [
@@ -403,7 +402,6 @@
       ];
     }
 
-    /* ===== DOM ===== */
     const el = (id) => document.getElementById(id);
     const $ = {
       rate: el("rateInfo"),
@@ -445,7 +443,6 @@
       pingBettyDirect: el("pingBettyDirect"),
     };
 
-    /* ===== STATE ===== */
     let lastData = [];
     let currentEvent = null;
     let currentMode = "OPEN";
@@ -455,7 +452,6 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    /* ===== HELPERS ===== */
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -480,31 +476,16 @@
     function isSoccerSportKey(sk){
       return /^soccer_/i.test(String(sk||""));
     }
-    function bestOutcome(outcomes=[]){
-      return [...outcomes].sort((a,b)=>(b.prob||0)-(a.prob||0))[0];
-    }
-    function toItOutcome(name=""){
-      return /draw/i.test(name) ? "Pareggio" : /home/i.test(name) ? "Casa" : /away/i.test(name) ? "Trasferta" : name;
-    }
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
 
-    function emptyState(msg){
-      return `
-        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:var(--border);">
-          ${esc(msg)}
-        </div>
-      `;
-    }
-
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
       return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
     }
-
     function dbgWrite(obj){
       try{
         $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
@@ -512,7 +493,6 @@
         $.dbgOut.textContent = String(obj);
       }
     }
-
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
       const txt = await r.text().catch(()=> "");
@@ -526,406 +506,36 @@
       return json ?? txt;
     }
 
-    /* ===== QUOTE: NORMALIZZAZIONE ===== */
-    function bestPriceFromMarket(bookmakers = [], marketKey, outcomeName){
-      let best = null;
-      for (const bm of bookmakers || []){
-        const m = (bm.markets || []).find(x => x.key === marketKey);
-        if (!m) continue;
-        const out = (m.outcomes || []).find(o => String(o.name).toLowerCase() === String(outcomeName).toLowerCase());
-        if (!out || typeof out.price !== "number") continue;
-        if (best === null || out.price > best) best = out.price;
-      }
-      return best;
+    function teamLogoUrl(teamName){
+      const name = String(teamName || "").trim();
+      if (!name) return null;
+      const q = encodeURIComponent(name);
+      return `https://ui-avatars.com/api/?name=${q}&background=fff7ed&color=0f172a&rounded=true&bold=true&size=64`;
     }
+    function setLogoNode(node, teamName, logoUrl){
+      node.classList.remove("fallback");
+      node.innerHTML = "";
+      const url = logoUrl || teamLogoUrl(teamName);
 
-    function bestTotalsLine(bookmakers = [], preferredPoint = 2.5){
-      const lines = new Map(); // point -> { point, over, under }
-      for (const bm of bookmakers || []){
-        const m = (bm.markets || []).find(x => x.key === "totals");
-        if (!m) continue;
-        for (const o of (m.outcomes || [])){
-          if (typeof o.point !== "number") continue;
-          const p = o.point;
-          const entry = lines.get(p) || { point:p, over:null, under:null };
-          if (String(o.name).toLowerCase() === "over" && typeof o.price === "number"){
-            if (entry.over === null || o.price > entry.over) entry.over = o.price;
-          }
-          if (String(o.name).toLowerCase() === "under" && typeof o.price === "number"){
-            if (entry.under === null || o.price > entry.under) entry.under = o.price;
-          }
-          lines.set(p, entry);
-        }
+      if (!url){
+        node.classList.add("fallback");
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
+        return;
       }
-      if (!lines.size) return null;
-      if (lines.has(preferredPoint)) return lines.get(preferredPoint);
-      return [...lines.values()].sort((a,b)=>a.point-b.point)[0];
-    }
 
-    function normalizeOddsEvent(ev){
-      const bms = ev.bookmakers || [];
-      const home = ev.home_team;
-      const away = ev.away_team;
-
-      const homeOdds = bestPriceFromMarket(bms, "h2h", home);
-      const awayOdds = bestPriceFromMarket(bms, "h2h", away);
-      const drawOdds = bestPriceFromMarket(bms, "h2h", "Draw");
-
-      const totals = bestTotalsLine(bms, 2.5);
-
-      return {
-        id: ev.id,
-        sport_key: ev.sport_key,
-        sport_title: ev.sport_title,
-        commence_time: ev.commence_time,
-        home_team: home,
-        away_team: away,
-        outcomes: [
-          { name: "Home", prob: null, odds: homeOdds },
-          { name: "Draw", prob: null, odds: drawOdds },
-          { name: "Away", prob: null, odds: awayOdds },
-        ],
-        totals: totals ? [{
-          point: totals.point,
-          outcomes: [
-            { name: "Over", prob: null, odds: totals.over, point: totals.point },
-            { name: "Under", prob: null, odds: totals.under, point: totals.point },
-          ]
-        }] : []
+      const img = document.createElement("img");
+      img.alt = teamName || "logo";
+      img.src = url;
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = () => {
+        node.innerHTML = "";
+        node.classList.add("fallback");
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
       };
+      node.appendChild(img);
     }
 
-    /* ===== API (Odds list) ===== */
-    async function fetchEvents(){
-      const sport = chosenSport();
-      const regions = $.regions.value;
-
-      const url = new URL(ODDS_BASE + "/get-odds");
-      url.searchParams.set("sport", sport);
-      url.searchParams.set("regions", regions);
-      url.searchParams.set("live", "false");
-      url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals");
-
-      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
-    }
-
-    function setDemoMode(on){
-      isDemoMode = !!on;
-      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
-    }
-
-    /* ===== API (Football HUB context) ===== */
-    async function hubResolve(home, away, dateStr){
-      const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
-      url.searchParams.set("home", home);
-      url.searchParams.set("away", away);
-      url.searchParams.set("date", dateStr);
-      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
-    }
-
-    async function hubContextByFixtureKey(fixtureKey){
-      const url = new URL(FOOTBALL_HUB_BASE + "/context");
-      url.searchParams.set("fixture_key", String(fixtureKey));
-      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
-    }
-
-    async function hubContextByTeams(home, away, dateStr){
-      const url = new URL(FOOTBALL_HUB_BASE + "/context");
-      url.searchParams.set("home", home);
-      url.searchParams.set("away", away);
-      url.searchParams.set("date", dateStr);
-      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
-    }
-
-    async function getContextBundleForEvent(ev){
-      const home = ev?.home_team;
-      const away = ev?.away_team;
-      const dateStr = dateOnlyISO(ev?.commence_time);
-      const key = `${home}__${away}__${dateStr}`;
-
-      if (contextCache.has(key)) return contextCache.get(key);
-
-      if (isDemoMode){
-        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_key:null };
-        contextCache.set(key, bundle);
-        return bundle;
-      }
-
-      const res = await hubResolve(home, away, dateStr);
-      const fixtureKey = res?.fixture_key || null;
-
-      if (!res?.ok || !fixtureKey){
-        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null };
-        contextCache.set(key, bundle);
-        return bundle;
-      }
-
-      let ctx = await hubContextByFixtureKey(fixtureKey);
-      if (!ctx?.ok){
-        ctx = await hubContextByTeams(home, away, dateStr);
-      }
-
-      const bundle = {
-        ok: !!ctx?.ok,
-        reason: ctx?.ok ? "ok" : "context_not_ok",
-        resolve: res,
-        context: ctx,
-        fixture_key: fixtureKey
-      };
-
-      contextCache.set(key, bundle);
-      return bundle;
-    }
-
-    /* ===== LOAD EVENTS ===== */
-    async function load(){
-      $.status.textContent = "stato: carico…";
-      $.chipContext.textContent = "context: —";
-      hideNotice();
-
-      try{
-        const data = await fetchEvents();
-
-        const rate = data?.rate || {};
-        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
-
-        const remaining = Number(rate.remaining ?? NaN);
-        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
-
-        if (mustDemo){
-          setDemoMode(true);
-          showNotice(`⚠️ DEMO attiva: remaining=${rate.remaining ?? "?"}.`);
-          lastData = buildDemoEvents();
-          $.status.textContent = "stato: demo";
-          $.chipCount.textContent = `match: ${lastData.length || 0}`;
-          renderCards(lastData);
-          return;
-        }
-
-        setDemoMode(false);
-
-        // ✅ QUI: data.data -> normalizzato
-        const raw = data?.data || data?.events || [];
-        lastData = (raw || []).map(normalizeOddsEvent);
-
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-
-        if (!lastData.length){
-          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
-          $.status.textContent = "stato: ok (0)";
-          return;
-        }
-
-        renderCards(lastData);
-        $.status.textContent = "stato: ok";
-      }catch(e){
-        console.error(e);
-
-        const dbg = e?._debug || null;
-        if (dbg){
-          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
-          dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
-        }else{
-          showNotice(`❌ get-odds fallito: ${String(e?.message || e)} (possibile CORS/origin). Vedi Debug Panel.`);
-          dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
-        }
-
-        setDemoMode(true);
-        lastData = buildDemoEvents();
-        $.chipCount.textContent = `match: ${lastData.length || 0}`;
-        renderCards(lastData);
-        $.status.textContent = "stato: demo";
-      }
-    }
-
-    /* ===== RENDER CARDS ===== */
-    function renderCards(events){
-      $.cards.innerHTML = events.map(renderCard).join("");
-    }
-
-    function renderCard(ev){
-      const pick = bestOutcome(ev.outcomes || []);
-      const when = fmtDate(ev.commence_time);
-
-      const h = esc(ev.home_team||"");
-      const a = esc(ev.away_team||"");
-      const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
-      const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
-
-      const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
-      const totals = Array.isArray(ev.totals) ? ev.totals : [];
-
-      const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
-      const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
-      const qAway = h2h.find(x => /away/i.test(x.name))?.odds ?? null;
-
-      const t0 = totals[0];
-      const line = t0?.point ?? null;
-      const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
-      const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
-
-      const pill = (v)=> (typeof v === "number")
-        ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>`
-        : `<span class="chip" style="opacity:.6;">—</span>`;
-
-      return `
-        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:var(--border);">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
-                ${h} <span class="text-slate-400">vs</span> ${a}
-              </h3>
-              <div class="text-xs text-slate-500 mt-1">${esc(when)}</div>
-            </div>
-            <span class="chip">${isDemoMode ? "demo" : "live"}</span>
-          </div>
-
-          <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
-            <div class="tlogo" title="${h}">${hInitial}</div>
-            <div class="text-sm font-extrabold text-slate-900">${h}</div>
-            <span class="vsPill">VS</span>
-            <div class="tlogo" title="${a}">${aInitial}</div>
-            <div class="text-sm font-extrabold text-slate-900">${a}</div>
-          </div>
-
-          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
-              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
-            </div>
-
-            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
-              <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
-              <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker (proxy).</div>
-            </div>
-          </div>
-
-          <div class="mt-3 text-sm text-slate-700">
-            <span class="font-extrabold text-slate-900">Previsione (rapida):</span>
-            ${pick ? `${esc(toItOutcome(pick.name))}` : "—"}
-            <div class="text-xs text-slate-500 mt-1">(La spiegazione completa è in chat.)</div>
-          </div>
-
-          <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
-              Leggi il Pronostico di Betty🧙‍♀️
-            </button>
-          </div>
-        </article>
-      `;
-    }
-
-    /* ===== MODAL ===== */
-    function openModal(){
-      $.overlay.classList.add("show");
-      $.overlay.setAttribute("aria-hidden","false");
-      document.body.style.overflow = "hidden";
-      setTimeout(()=> $.chatInput.focus(), 60);
-    }
-    function closeModal(){
-      $.overlay.classList.remove("show");
-      $.overlay.setAttribute("aria-hidden","true");
-      document.body.style.overflow = "";
-    }
-
-    function setMode(mode){
-      currentMode = mode;
-      $.tabBtns.forEach(b=>{
-        if (b.classList.contains("hidden")) return;
-        b.classList.toggle("active", b.dataset.mode === mode);
-      });
-    }
-
-    function setTabsForSport(sportKey){
-      const soccer = isSoccerSportKey(sportKey);
-      $.tabBTTS.classList.toggle("hidden", !soccer);
-      $.tabEXACT.classList.toggle("hidden", !soccer);
-      $.tabSCORER.classList.toggle("hidden", !soccer);
-      $.tabTOTALS.classList.remove("hidden");
-
-      const active = $.tabBtns.find(b=>b.classList.contains("active"));
-      if (active && active.classList.contains("hidden")){
-        setMode("OPEN");
-      }
-    }
-
-    /* ===== BETTY CALL ===== */
-    function buildAntiHallucinationPrompt(userText, mode, bundle){
-      const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
-      const ctxNote = hasCtx
-        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
-        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
-
-      return [
-        "REGOLA ASSOLUTA:",
-        "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
-        "- Usa SOLO ciò che trovi in `context` quando presente.",
-        "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
-        "",
-        ctxNote,
-        "",
-        "UTENTE:",
-        userText || ""
-      ].join("\n");
-    }
-
-    function extractBettyText(data){
-      if (!data) return "";
-      if (typeof data === "string") return data.trim();
-      const text =
-        (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
-      if (text) return text;
-
-      const text2 =
-        (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
-      if (text2) return text2;
-
-      try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
-    }
-
-    async function postJson(url, payload){
-      return fetchJsonWithDebug(url, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify(payload)
-      });
-    }
-
-    async function askBetty(userText){
-      if (!currentEvent) return "Seleziona prima un match 😊";
-
-      const sportKey = chosenSport();
-
-      const payload = {
-        mode: currentMode,
-        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
-        event: currentEvent,
-        context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
-        resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
-        history: chatHistory.slice(-10),
-        demo: isDemoMode,
-        sport: sportKey
-      };
-
-      // ✅ qui solo diretto betty, perché il proxy su get-odds dava 404
-      const url = BETTY_BASE + "/chat";
-      try{
-        const data = await postJson(url, payload);
-        const text = extractBettyText(data);
-        return text || "Risposta vuota da Betty.";
-      }catch(e){
-        const dbg = e?._debug || { where: "betty-direct/chat", error: String(e?.message || e) };
-        dbgWrite({ where:"askBetty", ...dbg });
-        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
-      }
-    }
-
-    /* ===== CHAT UI HELPERS ===== */
     function addBettyBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -975,7 +585,445 @@
       if (n) n.remove();
     }
 
-    /* ===== PUBLIC ===== */
+    function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      let best = null;
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === marketKey);
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        const o = outcomes.find(x => String(x?.name || "").toLowerCase() === String(outcomeName).toLowerCase());
+        const price = o?.price;
+
+        if (typeof price === "number" && price > 0){
+          if (best == null || price > best) best = price;
+        }
+      }
+      return best;
+    }
+    function bestTotalForPoint(bookmakers, point, overOrUnder){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      let best = null;
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === "totals");
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        const o = outcomes.find(x =>
+          String(x?.name || "").toLowerCase() === String(overOrUnder).toLowerCase()
+          && Number(x?.point) === Number(point)
+        );
+
+        const price = o?.price;
+        if (typeof price === "number" && price > 0){
+          if (best == null || price > best) best = price;
+        }
+      }
+      return best;
+    }
+    function normalizeOddsEvent(ev){
+      const home = ev?.home_team;
+      const away = ev?.away_team;
+      const bms = ev?.bookmakers;
+
+      const qHome = bestOddsFromBookmakers(bms, "h2h", home);
+      const qAway = bestOddsFromBookmakers(bms, "h2h", away);
+      const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
+
+      let line = null;
+      outer: for (const bm of (Array.isArray(bms) ? bms : [])){
+        for (const m of (Array.isArray(bm?.markets) ? bm.markets : [])){
+          if (m?.key !== "totals") continue;
+          const outs = Array.isArray(m?.outcomes) ? m.outcomes : [];
+          const first = outs.find(x => typeof x?.point === "number");
+          if (first){
+            line = first.point;
+            break outer;
+          }
+        }
+      }
+
+      const qOver = (line != null) ? bestTotalForPoint(bms, line, "Over") : null;
+      const qUnder = (line != null) ? bestTotalForPoint(bms, line, "Under") : null;
+
+      return {
+        id: ev?.id,
+        commence_time: ev?.commence_time,
+        home_team: home,
+        away_team: away,
+        outcomes: [
+          { name:"Home", prob: null, odds: qHome },
+          { name:"Draw", prob: null, odds: qDraw },
+          { name:"Away", prob: null, odds: qAway },
+        ],
+        totals: (line != null) ? [
+          { point: line, outcomes: [
+            { name:"Over", prob: null, odds: qOver },
+            { name:"Under", prob: null, odds: qUnder },
+          ]}
+        ] : [],
+        _raw: ev
+      };
+    }
+
+    async function fetchEvents(){
+      const sport = chosenSport();
+      const regions = $.regions.value;
+
+      const url = new URL(ODDS_BASE + "/get-odds");
+      url.searchParams.set("sport", sport);
+      url.searchParams.set("regions", regions);
+      url.searchParams.set("live", "false");
+      url.searchParams.set("count", String(MAX_COUNT));
+      url.searchParams.set("markets", "h2h,totals");
+
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
+    }
+
+    function setDemoMode(on){
+      isDemoMode = !!on;
+      $.chipMode.textContent = on ? "modalità: demo" : "modalità: live";
+    }
+
+    async function hubResolve(home, away, dateStr){
+      const url = new URL(FOOTBALL_HUB_BASE + "/resolve");
+      url.searchParams.set("home", home);
+      url.searchParams.set("away", away);
+      url.searchParams.set("date", dateStr);
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
+    }
+    async function hubContextByFixtureKey(fixtureKey){
+      const url = new URL(FOOTBALL_HUB_BASE + "/context");
+      url.searchParams.set("fixture_key", String(fixtureKey));
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
+    }
+    async function hubContextByTeams(home, away, dateStr){
+      const url = new URL(FOOTBALL_HUB_BASE + "/context");
+      url.searchParams.set("home", home);
+      url.searchParams.set("away", away);
+      url.searchParams.set("date", dateStr);
+      return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
+    }
+    async function getContextBundleForEvent(ev){
+      const home = ev?.home_team;
+      const away = ev?.away_team;
+      const dateStr = dateOnlyISO(ev?.commence_time);
+      const key = `${home}__${away}__${dateStr}`;
+
+      if (contextCache.has(key)) return contextCache.get(key);
+
+      if (isDemoMode){
+        const bundle = { ok:false, reason:"demo", resolve:null, context:null, fixture_key:null };
+        contextCache.set(key, bundle);
+        return bundle;
+      }
+
+      const res = await hubResolve(home, away, dateStr);
+      const fixtureKey = res?.fixture_key || null;
+
+      if (!res?.ok || !fixtureKey){
+        const bundle = { ok:false, reason:"resolve_failed", resolve:res || null, context:null, fixture_key:null };
+        contextCache.set(key, bundle);
+        return bundle;
+      }
+
+      let ctx = await hubContextByFixtureKey(fixtureKey);
+      if (!ctx?.ok){
+        ctx = await hubContextByTeams(home, away, dateStr);
+      }
+
+      const bundle = {
+        ok: !!ctx?.ok,
+        reason: ctx?.ok ? "ok" : "context_not_ok",
+        resolve: res,
+        context: ctx,
+        fixture_key: fixtureKey
+      };
+
+      contextCache.set(key, bundle);
+      return bundle;
+    }
+
+    function emptyState(msg){
+      return `
+        <div class="bg-white rounded-2xl border p-6 text-center text-slate-600 cardShadow" style="border-color:rgba(2,6,23,.10);">
+          ${esc(msg)}
+        </div>
+      `;
+    }
+
+    async function load(){
+      $.status.textContent = "stato: carico…";
+      $.chipContext.textContent = "context: —";
+      hideNotice();
+
+      try{
+        const data = await fetchEvents();
+
+        const rate = data?.rate || {};
+        $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
+
+        const remaining = Number(rate.remaining ?? NaN);
+        const mustDemo = (data?.ok === false) || (Number.isFinite(remaining) && remaining <= 0);
+
+        if (mustDemo){
+          setDemoMode(true);
+          showNotice(`⚠️ DEMO attiva: remaining=${rate.remaining ?? "?"}.`);
+          lastData = buildDemoEvents();
+          $.status.textContent = "stato: demo";
+          $.chipCount.textContent = `match: ${lastData.length || 0}`;
+          renderCards(lastData);
+          return;
+        }
+
+        setDemoMode(false);
+
+        const rawEvents = Array.isArray(data?.data) ? data.data : [];
+        lastData = rawEvents.map(normalizeOddsEvent);
+
+        $.chipCount.textContent = `match: ${lastData.length || 0}`;
+
+        if (!lastData.length){
+          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
+          $.status.textContent = "stato: ok (0)";
+          return;
+        }
+
+        renderCards(lastData);
+        $.status.textContent = "stato: ok";
+      }catch(e){
+        const dbg = e?._debug || null;
+        if (dbg){
+          showNotice(`❌ get-odds fallito: ${e.message}. Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", ...dbg });
+        }else{
+          showNotice(`❌ get-odds fallito: ${String(e?.message || e)}. Vedi Debug Panel.`);
+          dbgWrite({ where:"fetchEvents(get-odds)", error: String(e?.message || e) });
+        }
+
+        setDemoMode(true);
+        lastData = buildDemoEvents();
+        $.chipCount.textContent = `match: ${lastData.length || 0}`;
+        renderCards(lastData);
+        $.status.textContent = "stato: demo";
+      }
+    }
+
+    function renderCards(events){
+      $.cards.innerHTML = events.map(renderCard).join("");
+    }
+
+    function renderCard(ev){
+      const when = fmtDate(ev.commence_time);
+
+      const h = esc(ev.home_team||"");
+      const a = esc(ev.away_team||"");
+      const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
+      const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
+
+      const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
+      const totals = Array.isArray(ev.totals) ? ev.totals : [];
+
+      const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
+      const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
+      const qAway = h2h.find(x => /away/i.test(x.name))?.odds ?? null;
+
+      const t0 = totals[0];
+      const line = t0?.point ?? null;
+      const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
+      const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
+
+      const pill = (v)=> (typeof v === "number" ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
+
+      return `
+        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
+                ${h} <span class="text-slate-400">vs</span> ${a}
+              </h3>
+              <div class="text-xs text-slate-500 mt-1">${esc(when)}</div>
+            </div>
+            <span class="chip">${isDemoMode ? "demo" : "live"}</span>
+          </div>
+
+          <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
+            <div class="tlogo" title="${h}">
+              <img src="${esc(teamLogoUrl(ev.home_team) || '')}" alt="${h}" loading="lazy" referrerpolicy="no-referrer"
+                   onerror="this.remove(); this.parentElement.textContent='${hInitial}'">
+            </div>
+            <div class="text-sm font-extrabold text-slate-900">${h}</div>
+            <span class="vsPill">VS</span>
+            <div class="tlogo" title="${a}">
+              <img src="${esc(teamLogoUrl(ev.away_team) || '')}" alt="${a}" loading="lazy" referrerpolicy="no-referrer"
+                   onerror="this.remove(); this.parentElement.textContent='${aInitial}'">
+            </div>
+            <div class="text-sm font-extrabold text-slate-900">${a}</div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
+              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
+            </div>
+
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
+              <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-end">
+            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
+              Leggi il Pronostico di Betty🧙‍♀️
+            </button>
+          </div>
+        </article>
+      `;
+    }
+
+    function openModal(){
+      $.overlay.classList.add("show");
+      $.overlay.setAttribute("aria-hidden","false");
+      document.body.style.overflow = "hidden";
+      setTimeout(()=> $.chatInput.focus(), 60);
+    }
+    function closeModal(){
+      $.overlay.classList.remove("show");
+      $.overlay.setAttribute("aria-hidden","true");
+      document.body.style.overflow = "";
+    }
+
+    function setMode(mode){
+      currentMode = mode;
+      $.tabBtns.forEach(b=>{
+        if (b.classList.contains("hidden")) return;
+        b.classList.toggle("active", b.dataset.mode === mode);
+      });
+    }
+
+    function setTabsForSport(sportKey){
+      const soccer = isSoccerSportKey(sportKey);
+      $.tabBTTS.classList.toggle("hidden", !soccer);
+      $.tabEXACT.classList.toggle("hidden", !soccer);
+      $.tabSCORER.classList.toggle("hidden", !soccer);
+      $.tabTOTALS.classList.remove("hidden");
+
+      const active = $.tabBtns.find(b=>b.classList.contains("active"));
+      if (active && active.classList.contains("hidden")){
+        setMode("OPEN");
+      }
+    }
+
+    /* ====== FIX QUI: prompt “strong” che obbliga la previsione subito ====== */
+    function buildStrongMarketRequest(mode, ev){
+      const line = ev?.totals?.[0]?.point ?? null;
+      const hasLine = (typeof line === "number");
+
+      if (mode === "TOTALS"){
+        return hasLine
+          ? `Dammi SUBITO una previsione Under/Over sulla linea ${line}. Scegli una sola giocata principale (Over o Under) e motivala con 3 punti (quote + contesto). Poi proponi una giocata alternativa più prudente.`
+          : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
+      }
+      if (mode === "BTTS"){
+        return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
+      }
+      if (mode === "EXACT"){
+        return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
+      }
+      if (mode === "SCORER"){
+        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
+      }
+      return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
+    }
+
+    function buildAntiHallucinationPrompt(userText, mode, bundle){
+      const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
+      const ctxNote = hasCtx
+        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
+        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
+
+      return [
+        "REGOLA ASSOLUTA:",
+        "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
+        "- Usa SOLO ciò che trovi in `context` quando presente.",
+        "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
+        "",
+        "OBBLIGO DI OUTPUT:",
+        "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
+        "- Devi dare SUBITO una previsione completa per il mercato richiesto.",
+        "- Struttura: (1) Giocata principale + motivazione breve (2) Alternativa prudente (3) Livello fiducia (basso/medio/alto).",
+        "- Chiudi SEMPRE con 1 domanda breve per far continuare l'utente (es. 'Vuoi anche 1X2 o Risultato Esatto?').",
+        "",
+        ctxNote,
+        "",
+        "RICHIESTA UTENTE:",
+        userText || ""
+      ].join("\n");
+    }
+
+    function extractBettyText(data){
+      if (!data) return "";
+      if (typeof data === "string") return data.trim();
+      const text =
+        (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
+      if (text) return text;
+
+      const text2 =
+        (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
+      if (text2) return text2;
+
+      try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
+    }
+
+    async function postJson(url, payload){
+      return fetchJsonWithDebug(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
+
+    async function askBetty(userText){
+      if (!currentEvent){
+        addBettyBubble("Seleziona prima un match 😊");
+        return "";
+      }
+
+      const sportKey = chosenSport();
+
+      const payload = {
+        mode: currentMode,
+        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
+        event: currentEvent,
+        context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
+        resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
+        history: chatHistory.slice(-10),
+        demo: isDemoMode,
+        sport: sportKey
+      };
+
+      try{
+        const data = await postJson(BETTY_BASE + "/chat", payload);
+        const text = extractBettyText(data);
+        if (!text) throw new Error("Risposta vuota da Betty");
+        return text;
+      }catch(e){
+        const dbg = e?._debug || { where:"betty /chat", error:String(e?.message || e) };
+        dbgWrite({ where:"askBetty", ...dbg });
+        return `⚠️ Errore chiamata Betty.\nDettaglio: ${String(e?.message || e)}`;
+      }
+    }
+
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -990,14 +1038,13 @@
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-
-      $.mhHomeLogo.textContent = (ev.home_team || "H").slice(0,1).toUpperCase();
-      $.mhAwayLogo.textContent = (ev.away_team || "A").slice(0,1).toUpperCase();
+      setLogoNode($.mhHomeLogo, ev.home_team, null);
+      setLogoNode($.mhAwayLogo, ev.away_team, null);
 
       setMode("OPEN");
       openModal();
 
-      addBettyBubble("Ok, aggancio il contesto del match (classifica/forma/indisponibili/marcatori)…");
+      addBettyBubble("Ok, aggancio il contesto del match…");
       $.chipContext.textContent = "context: carico…";
 
       try{
@@ -1006,26 +1053,24 @@
 
         if (bundle && bundle.ok && bundle.context){
           $.chipContext.textContent = "context: ok";
-          addBettyBubble("Perfetto ✅ Contesto agganciato. Ora posso ragionare su dati reali.");
+          addBettyBubble("Perfetto ✅ Contesto agganciato.");
         }else{
           $.chipContext.textContent = "context: NO";
           addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
         }
       }catch(err){
-        console.error(err);
         $.chipContext.textContent = "context: NO";
         addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
 
       const th = addThinking();
-      const opening = await askBetty("OPENING_ANALYSIS");
+      const opening = await askBetty("Dammi SUBITO una analisi completa e una previsione principale + alternativa prudente.");
       removeThinking(th);
 
       addBettyBubble(opening);
       chatHistory.push({ role:"assistant", content: opening });
     }
 
-    /* ===== UI EVENTS ===== */
     $.refresh.addEventListener("click", load);
 
     $.sport.addEventListener("change", () => {
@@ -1034,11 +1079,30 @@
       if (custom) $.sportCustom.focus();
     });
 
+    /* ========= FIX TAB CLICK: invece di “modalità attiva” -> richiesta forte immediata ========= */
     $.tabBtns.forEach(btn=>{
-      btn.addEventListener("click", ()=>{
+      btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
+
         setMode(btn.dataset.mode);
-        addBettyBubble("Ok 👍 Dimmi cosa vuoi sapere su questo mercato.");
+
+        if (!currentEvent){
+          addBettyBubble("Seleziona un match 😊");
+          return;
+        }
+
+        const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
+
+        // opzionale: non spammo la chat con "(richiesta rapida)" ogni volta, faccio solo una riga elegante
+        addUserBubble(btn.textContent);
+        chatHistory.push({ role:"user", content: strong });
+
+        const th = addThinking();
+        const ans = await askBetty(strong);
+        removeThinking(th);
+
+        addBettyBubble(ans);
+        chatHistory.push({ role:"assistant", content: ans });
       });
     });
 
@@ -1069,7 +1133,6 @@
     $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
-    /* ===== DEBUG BUTTONS ===== */
     $.pingOdds.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
@@ -1078,7 +1141,6 @@
         dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
       }
     });
-
     $.pingHub.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
@@ -1087,7 +1149,6 @@
         dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
       }
     });
-
     $.pingBettyDirect.addEventListener("click", async ()=>{
       try{
         const res = await postJson(BETTY_BASE + "/chat", { ping:true });
@@ -1097,7 +1158,6 @@
       }
     });
 
-    /* ===== INIT ===== */
     load();
   </script>
 </body>
