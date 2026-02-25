@@ -38,7 +38,6 @@
       border:1px solid var(--border);
       background:#fff;
       transition: transform .08s ease, box-shadow .12s ease;
-      cursor:pointer;
     }
     .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 24px rgba(2,6,23,.10); }
     .btnPrimary{
@@ -177,7 +176,6 @@
       border:1px solid var(--border);
       background:#fff;
       color:#0f172a;
-      cursor:pointer;
     }
     .tabBtn.active{
       border-color: rgba(245,158,11,.50);
@@ -319,7 +317,6 @@
           <span class="chip">stile: light premium</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
-          <span class="chip" id="chipVer">ver: —</span>
         </div>
       </div>
     </section>
@@ -369,15 +366,13 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Sai gli infortunati?')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
   </div>
 
   <script>
-    const __NS_VER = "idxfix-2026-02-25a";
-
     const ODDS_BASE = "https://get-odds-299332443653.europe-west8.run.app";
     const FOOTBALL_HUB_BASE = "https://football-hub-299332443653.europe-west8.run.app";
     const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
@@ -416,7 +411,6 @@
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
       chipContext: el("chipContext"),
-      chipVer: el("chipVer"),
 
       sport: el("sport"),
       sportCustom: el("sportCustom"),
@@ -458,8 +452,6 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    $.chipVer.textContent = "ver: " + __NS_VER;
-
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
@@ -490,6 +482,10 @@
     }
     function hideNotice(){ $.notice.classList.add("hidden"); }
 
+    function safeJson(obj){
+      const s = JSON.stringify(obj || {});
+      return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+    }
     function dbgWrite(obj){
       try{
         $.dbgOut.textContent = typeof obj === "string" ? obj : JSON.stringify(obj,null,2);
@@ -818,13 +814,11 @@
       }
     }
 
-    // ✅ ora passiamo anche idx
     function renderCards(events){
-      $.cards.innerHTML = events.map((ev, idx) => renderCard(ev, idx)).join("");
+      $.cards.innerHTML = events.map(renderCard).join("");
     }
 
-    // ✅ niente JSON in onclick -> data-idx
-    function renderCard(ev, idx){
+    function renderCard(ev){
       const when = fmtDate(ev.commence_time);
 
       const h = esc(ev.home_team||"");
@@ -889,36 +883,13 @@
           </div>
 
           <div class="mt-4 flex items-center justify-end">
-            <button class="btn btnPrimary js-open-betty" data-idx="${idx}">
+            <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
               Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
         </article>
       `;
     }
-
-    // ✅ CLICK delegation su #cards: prende SEMPRE il bottone giusto
-    $.cards.addEventListener("click", (e)=>{
-      const btn = e.target.closest(".js-open-betty");
-      if (!btn) return;
-
-      const idx = Number(btn.getAttribute("data-idx"));
-      const ev = (Number.isFinite(idx) && idx >= 0) ? lastData[idx] : null;
-
-      dbgWrite({
-        ver: __NS_VER,
-        clicked_idx: idx,
-        picked: ev ? `${ev.home_team} vs ${ev.away_team}` : null,
-        lastData_len: lastData?.length || 0
-      });
-
-      if (!ev){
-        showNotice("⚠️ Evento non trovato (idx non valido). Ricarica i match.");
-        return;
-      }
-
-      openBettyByIndex(idx);
-    });
 
     function openModal(){
       $.overlay.classList.add("show");
@@ -953,6 +924,7 @@
       }
     }
 
+    /* ====== “strong” richieste tab ====== */
     function buildStrongMarketRequest(mode, ev){
       const line = ev?.totals?.[0]?.point ?? null;
       const hasLine = (typeof line === "number");
@@ -969,32 +941,39 @@
         return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
       }
       if (mode === "SCORER"){
-        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
+        return `Dammi SUBITO una lettura marcatori: se nel contesto ci sono nomi/goal usali. Se NON ci sono, NON inventare: fai una risposta utile e “umana” (niente frasi robotiche), spiega cosa manca e proponi un’alternativa prudente (es. mercati 1X2/Over-Under o “marcatore: no bet”).`;
       }
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
+    /* ========= FIX PRINCIPALE: prompt umano + chat libera ========= */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && bundle.context && bundle.context.context);
-      const ctxNote = hasCtx
-        ? "Hai un CONTEXTO dati (classifica/forma/infortuni/marcatori/h2h). Usalo."
-        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori). Dì chiaramente che mancano.";
 
       return [
-        "REGOLA ASSOLUTA:",
-        "- Non inventare NESSUN dato su rosa, indisponibili, classifica, ultimi risultati.",
+        "SEI BETTY (tono umano, caldo, non robotico).",
+        "",
+        "REGOLE DATI (anti-hallucination):",
+        "- NON inventare mai: infortunati, squalificati, marcatori, forma, classifica, H2H, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
-        "- Se manca un dato, scrivi: 'Questo dato non è disponibile nel contesto'.",
+        "- Se un dato specifico non c’è: NON usare frasi fredde tipo 'dato non disponibile nel contesto'.",
+        "- Invece: ammetti con simpatia (es. 'Ops, non ho la lista aggiornata qui 😅') e proponi un'alternativa utile.",
+        "",
+        "CHAT LIBERA (fondamentale):",
+        "- La domanda dell'utente può NON essere legata al tab aperto o alle quote. RISpondi comunque.",
+        "- Se l'utente chiede: infortunati, squalifiche, probabili formazioni, news, ecc: rispondi nel limite dei dati.",
+        "- Se non puoi verificare, dai una risposta utile: cosa controllare, come impatta sul match in modo GENERALE, e chiedi 1 info per completare (es. 'mi dai i nomi assenti?').",
         "",
         "OBBLIGO DI OUTPUT:",
         "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
-        "- Devi dare SUBITO una previsione completa per il mercato richiesto.",
-        "- Struttura: (1) Giocata principale + motivazione breve (2) Alternativa prudente (3) Livello fiducia (basso/medio/alto).",
-        "- Chiudi SEMPRE con 1 domanda breve per far continuare l'utente (es. 'Vuoi anche 1X2 o Risultato Esatto?').",
+        "- Rispondi subito con contenuto concreto.",
+        "- Se è una richiesta betting: (1) Giocata principale + 2-3 motivi (2) Alternativa prudente (3) Fiducia basso/medio/alto.",
+        "- Se è una richiesta non betting: risposta chiara e utile + 1 domanda breve per continuare.",
         "",
-        ctxNote,
+        `STATO CONTESTO: ${hasCtx ? "OK (usa i dati presenti)" : "MANCANTE (non inventare, sii utile e umano)"}`,
+        `TAB ATTIVO (puoi ignorarlo se la domanda è generale): ${String(mode||"OPEN")}`,
         "",
-        "RICHIESTA UTENTE:",
+        "DOMANDA UTENTE:",
         userText || ""
       ].join("\n");
     }
@@ -1052,13 +1031,6 @@
       }
     }
 
-    // ✅ wrapper: prende l’evento dalla lista (mai dal DOM / JSON inline)
-    async function openBettyByIndex(idx){
-      const ev = lastData[idx];
-      if (!ev) return;
-      await window.openBetty(ev);
-    }
-
     window.openBetty = async function(ev){
       currentEvent = ev;
       chatHistory = [];
@@ -1079,7 +1051,7 @@
       setMode("OPEN");
       openModal();
 
-      addBettyBubble(`Ok, aggancio il contesto del match… (${ev.home_team} vs ${ev.away_team})`);
+      addBettyBubble("Ok, aggancio il contesto del match…");
       $.chipContext.textContent = "context: carico…";
 
       try{
@@ -1091,7 +1063,7 @@
           addBettyBubble("Perfetto ✅ Contesto agganciato.");
         }else{
           $.chipContext.textContent = "context: NO";
-          addWarn(`Non aggancio il contesto. Dettaglio: ${bundle?.reason || "unknown"}`);
+          addWarn(`Non aggancio il contesto. Motivo: ${bundle?.reason || "unknown"}`);
         }
       }catch(err){
         $.chipContext.textContent = "context: NO";
@@ -1169,25 +1141,25 @@
     $.pingOdds.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(ODDS_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"get-odds /", ok, ver: __NS_VER });
+        dbgWrite({ ping:"get-odds /", ok });
       }catch(e){
-        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
+        dbgWrite({ ping:"get-odds /", error:String(e.message||e), debug:e._debug || null });
       }
     });
     $.pingHub.addEventListener("click", async ()=>{
       try{
         const ok = await fetchJsonWithDebug(FOOTBALL_HUB_BASE + "/", { headers:{Accept:"application/json"} });
-        dbgWrite({ ping:"football-hub /", ok, ver: __NS_VER });
+        dbgWrite({ ping:"football-hub /", ok });
       }catch(e){
-        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
+        dbgWrite({ ping:"football-hub /", error:String(e.message||e), debug:e._debug || null });
       }
     });
     $.pingBettyDirect.addEventListener("click", async ()=>{
       try{
-        const res = await postJson(BETTY_BASE + "/chat", { ping:true, ver: __NS_VER });
-        dbgWrite({ ping:"betty diretto /chat", res, ver: __NS_VER });
+        const res = await postJson(BETTY_BASE + "/chat", { ping:true });
+        dbgWrite({ ping:"betty diretto /chat", res });
       }catch(e){
-        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null, ver: __NS_VER });
+        dbgWrite({ ping:"betty diretto /chat", error:String(e.message||e), debug:e._debug || null });
       }
     });
 
