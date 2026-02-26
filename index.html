@@ -244,7 +244,7 @@
         </h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
           Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-          <span class="text-slate-500">(con contesto: forma, classifica, marcatori, indisponibili)</span>.
+          <span class="text-slate-500">(con contesto: forma, classifica, indisponibili)</span>.
         </p>
       </div>
 
@@ -352,12 +352,13 @@
         <button id="closeModal" class="btn" style="padding:8px 12px;">Chiudi</button>
       </div>
 
+      <!-- ✅ TABS: rimosso Marcatore, aggiunto Combo/Multiple -->
       <div class="microTabs">
         <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
         <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
         <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
-        <button class="tabBtn" data-mode="SCORER" id="tabSCORER">Marcatore</button>
+        <button class="tabBtn" data-mode="COMBOS" id="tabCOMBOS">Combo/Multiple</button>
       </div>
 
       <div class="modalBody">
@@ -366,7 +367,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Contro chi gioca l’Inter?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Fammi una multipla prudente')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -430,7 +431,7 @@
       tabTOTALS: el("tabTOTALS"),
       tabBTTS: el("tabBTTS"),
       tabEXACT: el("tabEXACT"),
-      tabSCORER: el("tabSCORER"),
+      tabCOMBOS: el("tabCOMBOS"),
 
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
@@ -452,9 +453,8 @@
     let currentContextBundle = null;
     const contextCache = new Map();
 
-    // ====== INDICI/ALIAS per riconoscere richieste su altri match o su una squadra ======
-    let matchIndex = [];   // [{id, home, away, whenIso}]
-    let teamMentions = []; // [{team, tokens:Set<string>}]
+    let matchIndex = [];
+    let teamMentions = [];
 
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
@@ -589,29 +589,23 @@
       if (n) n.remove();
     }
 
-    // ====== FIX "Inter Milan" vs "Milan" (solo per resolve/context) ======
     function normalizeTeamForHub(name){
       const n = String(name||"").trim();
       const l = n.toLowerCase();
 
-      // Inter: spesso arriva come "Inter Milan"
       if (l.includes("inter") && l.includes("milan")) return "Inter";
       if (l === "inter milano") return "Inter";
       if (l === "inter") return "Inter";
 
-      // Milan: vogliamo distinguere dall'Inter
       if (l === "milan") return "AC Milan";
       if (l === "ac milan" || l === "a.c. milan") return "AC Milan";
       if (l.includes("milan") && !l.includes("inter")) return "AC Milan";
 
-      // Roma
       if (l === "roma" || l === "as roma") return "AS Roma";
 
-      // Standard
       return n;
     }
 
-    // ====== Index + match switch suggestion (frontend-only, NO backend) ======
     function stripAccents(s){
       return String(s||"")
         .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
@@ -622,11 +616,9 @@
       const toks = new Set();
       if (!t) return toks;
 
-      toks.add(t); // full
-      // add single words
+      toks.add(t);
       t.split(" ").filter(Boolean).forEach(w => toks.add(w));
 
-      // common nick/abbr
       if (t === "juventus"){ toks.add("juve"); }
       if (t === "inter"){ toks.add("inter"); toks.add("inter milan"); toks.add("inter milano"); }
       if (t === "ac milan"){ toks.add("milan"); toks.add("acmilan"); }
@@ -646,7 +638,6 @@
         if (m.home) teams.set(m.home, baseTokensForTeam(normalizeTeamForHub(m.home)));
         if (m.away) teams.set(m.away, baseTokensForTeam(normalizeTeamForHub(m.away)));
       }
-      // also allow originals
       for (const [k,set] of teams.entries()){
         const orig = baseTokensForTeam(k);
         orig.forEach(x => set.add(x));
@@ -658,7 +649,6 @@
     function textIncludesAnyToken(txt, tokenSet){
       for (const tok of tokenSet){
         if (!tok) continue;
-        // enforce word-ish match for short tokens
         if (tok.length <= 3){
           const re = new RegExp(`(^|\\W)${tok.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}(\\W|$)`, "i");
           if (re.test(txt)) return true;
@@ -700,18 +690,16 @@
       return events[0] || null;
     }
 
-    function suggestSwitchMessage(targetEv, reason){
+    function suggestSwitchMessage(targetEv){
       const when = targetEv?.commence_time ? fmtDate(targetEv.commence_time) : "";
       const title = `${targetEv?.home_team || "—"} vs ${targetEv?.away_team || "—"}`.trim();
 
-      const base =
-        `Ci sto 😄 Però in questo momento ho aperto un altro tabellone.\n` +
-        `Per analizzare *${title}* al meglio (quote + contesto), apri quel match dalla lista e poi te lo spacchetto in 10 secondi.\n` +
+      return (
+        `Ci sto 😄 Però in questo momento ho aperto un altro match.\n` +
+        `Per risponderti bene su *${title}* (quote + contesto), aprilo dalla lista qui dietro e te lo analizzo subito.\n` +
         (when ? `⏱️ Kickoff: ${when}\n` : "") +
-        `Vuoi che lo cerchi tra le card e ti dica dove sta?`;
-
-      // reason is just for future, keep UX clean
-      return base;
+        `Appena lo apri, posso anche proporti 2 combo “pronta-copia” 👇`
+      );
     }
 
     function shouldInterceptAsOtherMatch(userText){
@@ -723,33 +711,29 @@
       const curHome = String(currentEvent?.home_team||"").trim();
       const curAway = String(currentEvent?.away_team||"").trim();
 
-      // if user mentions BOTH teams of current match -> don't intercept
       const mentionsCurrent =
         mentioned.includes(curHome) || mentioned.includes(curAway) ||
         mentioned.map(normalizeTeamForHub).includes(normalizeTeamForHub(curHome)) ||
         mentioned.map(normalizeTeamForHub).includes(normalizeTeamForHub(curAway));
 
-      // 1) If mentions two teams -> try find that specific match
       if (mentioned.length >= 2){
         for (let i=0;i<mentioned.length;i++){
           for (let j=i+1;j<mentioned.length;j++){
             const ev = findEventByTeams(mentioned[i], mentioned[j]);
             if (ev){
               const isCurrent = (String(ev.id) === String(currentEvent.id));
-              if (!isCurrent) return { type:"other_match", ev };
+              if (!isCurrent) return { ev };
               return null;
             }
           }
         }
       }
 
-      // 2) Single team question (e.g. "contro chi gioca l'inter?")
-      // If team is not in current match, suggest switching to that team's next match (if present)
       if (mentioned.length === 1 && !mentionsCurrent){
         const t = mentioned[0];
         const up = findUpcomingForTeam(t);
         if (up && String(up.id) !== String(currentEvent.id)){
-          return { type:"other_team", ev: up, team: t };
+          return { ev: up };
         }
       }
 
@@ -881,7 +865,6 @@
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
     async function getContextBundleForEvent(ev){
-      // IMPORTANT: normalize only for HUB to avoid Inter/Milan ambiguity
       const homeOriginal = ev?.home_team;
       const awayOriginal = ev?.away_team;
 
@@ -919,7 +902,7 @@
         resolve: res,
         context: ctx,
         fixture_key: fixtureKey,
-        _hub_names: { home, away, date: dateStr }, // debug info
+        _hub_names: { home, away, date: dateStr },
         _orig_names: { home: homeOriginal, away: awayOriginal }
       };
 
@@ -1096,8 +1079,9 @@
       const soccer = isSoccerSportKey(sportKey);
       $.tabBTTS.classList.toggle("hidden", !soccer);
       $.tabEXACT.classList.toggle("hidden", !soccer);
-      $.tabSCORER.classList.toggle("hidden", !soccer);
-      $.tabTOTALS.classList.remove("hidden");
+
+      // COMBOS sempre disponibile (lavora sui mercati che ci sono)
+      $.tabCOMBOS.classList.remove("hidden");
 
       const active = $.tabBtns.find(b=>b.classList.contains("active"));
       if (active && active.classList.contains("hidden")){
@@ -1118,19 +1102,21 @@
         return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
       }
       if (mode === "EXACT"){
-        return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
+        return `Dammi SUBITO 2 risultati esatti più probabili (con livello fiducia) e motivali in modo discorsivo.`;
       }
-      if (mode === "SCORER"){
-        return `Dammi SUBITO un suggerimento marcatore SOLO se nel contesto ci sono nomi giocatori E sono disponibili (non infortunati / non squalificati). Se c’è anche solo dubbio, dì chiaramente che su questo mercato preferisci NON SBILANCIARTI (“marcatore: no bet”) e proponi un’alternativa più sensata (es. 1X2 o Totali).`;
+      if (mode === "COMBOS"){
+        return `Crea 3 proposte: (1) Singola migliore, (2) Combo prudente (2 selezioni), (3) Combo più aggressiva (2-3 selezioni). 
+Usa SOLO mercati disponibili nell’evento (1X2 e Totali; BTTS se presente). NON inventare quote che non vedi: se una quota manca scrivi “quota non disponibile” e proponi un’alternativa.
+Per ogni proposta: indica selezioni, perché ha senso (max 3 bullet) e livello fiducia (basso/medio/alto).`;
       }
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
-    function buildAntiHallucinationPrompt(userText, mode, bundle){
+    function buildAntiHallucinationPrompt(userText, bundle){
       const hasCtx = !!(bundle && bundle.ok && (bundle.context?.context || bundle.context));
       const ctxNote = hasCtx
-        ? "Hai un CONTESTO dati (classifica/forma/infortuni/marcatori/h2h quando presenti). Usalo."
-        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori).";
+        ? "Hai un CONTESTO dati (classifica/forma/infortuni quando presenti). Usalo."
+        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili).";
 
       const home = currentEvent?.home_team || "";
       const away = currentEvent?.away_team || "";
@@ -1142,23 +1128,22 @@
         "- Non inventare NESSUN dato su rosa, indisponibili, squalificati, classifica, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
         "- Se manca un dato, NON dire 'dato non disponibile nel contesto' in modo freddo.",
-        "  Usa una risposta più umana e breve (es: 'Ops, questo dettaglio qui mi sfugge 😅 Se vuoi, apri il match giusto e lo recupero al volo.').",
+        "  Usa una risposta più umana e breve (es: 'Ops, questo dettaglio qui mi sfugge 😅').",
         "",
-        "COMPITO CHIAVE (molto importante):",
-        `- Il match attualmente aperto nel tabellone è: ${home} vs ${away}.`,
-        "- Se l’utente chiede di un ALTRO match o di un’altra squadra non collegata a questo match:",
-        "  NON dire che 'non hai accesso'.",
-        "  Di': che per analizzare quell’altro match deve aprire il tabellone giusto (aprire la card del match) e proponi cosa farai appena lo apre.",
+        "MATCH APERTO:",
+        `- ${home} vs ${away}.`,
+        "- Se l’utente chiede un ALTRO match o un’altra squadra:",
+        "  NON dire che 'non hai info'.",
+        "  Di': che per analizzare quell’altro match deve aprire il tabellone giusto (aprire la card del match) e spiega cosa farai appena lo apre.",
         "",
         "OBBLIGO DI OUTPUT:",
-        "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
         "- Devi dare SUBITO una risposta utile e concreta.",
-        "- Se la domanda è su un mercato (tab): struttura (1) Giocata principale (2) Alternativa prudente (3) Fiducia basso/medio/alto.",
-        "- Se la domanda è informativa (infortuni/squalificati/classifica/ultimi risultati): rispondi in modo diretto e sintetico.",
+        "- Se è un mercato: (1) Giocata principale (2) Alternativa prudente (3) Fiducia.",
+        "- Se è Combo/Multiple: (1) Singola (2) Combo prudente (3) Combo aggressiva, SOLO con mercati/quote disponibili.",
         "",
         "LINGUA & STILE:",
         "- Italiano naturale, amichevole, premium.",
-        "- Se nel contesto trovi tipologie di infortunio in inglese (es. 'Knee Injury'), traducile in italiano (es. 'infortunio al ginocchio').",
+        "- Se nel contesto trovi tipologie di infortunio in inglese, traducile in italiano.",
         "",
         ctxNote,
         "",
@@ -1199,7 +1184,7 @@
 
       const payload = {
         mode: currentMode,
-        prompt: buildAntiHallucinationPrompt(userText || "", currentMode, currentContextBundle),
+        prompt: buildAntiHallucinationPrompt(userText || "", currentContextBundle),
         event: currentEvent,
         context: (currentContextBundle && currentContextBundle.ok) ? (currentContextBundle.context?.context || currentContextBundle.context) : null,
         resolve: (currentContextBundle && currentContextBundle.resolve) ? currentContextBundle.resolve : null,
@@ -1275,7 +1260,6 @@
       if (custom) $.sportCustom.focus();
     });
 
-    // ====== TAB CLICK: richiesta forte immediata ======
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
@@ -1301,7 +1285,6 @@
       });
     });
 
-    // ====== SEND: se chiedono altro match/squadra, NON chiamiamo backend: suggeriamo switch tabellone ======
     $.sendBtn.addEventListener("click", async ()=>{
       const t = $.chatInput.value.trim();
       if (!t) return;
@@ -1309,12 +1292,10 @@
 
       addUserBubble(t);
 
-      // Intercetta richieste su altro match / altra squadra
       const intercept = shouldInterceptAsOtherMatch(t);
       if (intercept && intercept.ev){
-        const msg = suggestSwitchMessage(intercept.ev, intercept.type);
+        const msg = suggestSwitchMessage(intercept.ev);
         addBettyBubble(msg);
-        // Non sporchiamo history con chiamate "false"
         chatHistory.push({ role:"user", content: t });
         chatHistory.push({ role:"assistant", content: msg });
         return;
