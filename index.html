@@ -366,7 +366,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Contro chi gioca l’Inter?')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -451,6 +451,10 @@
 
     let currentContextBundle = null;
     const contextCache = new Map();
+
+    // ====== INDICI/ALIAS per riconoscere richieste su altri match o su una squadra ======
+    let matchIndex = [];   // [{id, home, away, whenIso}]
+    let teamMentions = []; // [{team, tokens:Set<string>}]
 
     function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
@@ -585,6 +589,173 @@
       if (n) n.remove();
     }
 
+    // ====== FIX "Inter Milan" vs "Milan" (solo per resolve/context) ======
+    function normalizeTeamForHub(name){
+      const n = String(name||"").trim();
+      const l = n.toLowerCase();
+
+      // Inter: spesso arriva come "Inter Milan"
+      if (l.includes("inter") && l.includes("milan")) return "Inter";
+      if (l === "inter milano") return "Inter";
+      if (l === "inter") return "Inter";
+
+      // Milan: vogliamo distinguere dall'Inter
+      if (l === "milan") return "AC Milan";
+      if (l === "ac milan" || l === "a.c. milan") return "AC Milan";
+      if (l.includes("milan") && !l.includes("inter")) return "AC Milan";
+
+      // Roma
+      if (l === "roma" || l === "as roma") return "AS Roma";
+
+      // Standard
+      return n;
+    }
+
+    // ====== Index + match switch suggestion (frontend-only, NO backend) ======
+    function stripAccents(s){
+      return String(s||"")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .toLowerCase();
+    }
+    function baseTokensForTeam(team){
+      const t = stripAccents(team).replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
+      const toks = new Set();
+      if (!t) return toks;
+
+      toks.add(t); // full
+      // add single words
+      t.split(" ").filter(Boolean).forEach(w => toks.add(w));
+
+      // common nick/abbr
+      if (t === "juventus"){ toks.add("juve"); }
+      if (t === "inter"){ toks.add("inter"); toks.add("inter milan"); toks.add("inter milano"); }
+      if (t === "ac milan"){ toks.add("milan"); toks.add("acmilan"); }
+      if (t === "as roma"){ toks.add("roma"); }
+      return toks;
+    }
+    function rebuildIndexes(){
+      matchIndex = (Array.isArray(lastData) ? lastData : []).map(ev => ({
+        id: ev?.id,
+        home: String(ev?.home_team||"").trim(),
+        away: String(ev?.away_team||"").trim(),
+        whenIso: ev?.commence_time
+      }));
+
+      const teams = new Map();
+      for (const m of matchIndex){
+        if (m.home) teams.set(m.home, baseTokensForTeam(normalizeTeamForHub(m.home)));
+        if (m.away) teams.set(m.away, baseTokensForTeam(normalizeTeamForHub(m.away)));
+      }
+      // also allow originals
+      for (const [k,set] of teams.entries()){
+        const orig = baseTokensForTeam(k);
+        orig.forEach(x => set.add(x));
+      }
+
+      teamMentions = Array.from(teams.entries()).map(([team, tokens]) => ({ team, tokens }));
+    }
+
+    function textIncludesAnyToken(txt, tokenSet){
+      for (const tok of tokenSet){
+        if (!tok) continue;
+        // enforce word-ish match for short tokens
+        if (tok.length <= 3){
+          const re = new RegExp(`(^|\\W)${tok.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}(\\W|$)`, "i");
+          if (re.test(txt)) return true;
+        }else{
+          if (txt.includes(tok)) return true;
+        }
+      }
+      return false;
+    }
+
+    function detectMentionedTeams(userText){
+      const txt = stripAccents(userText).replace(/\s+/g," ").trim();
+      if (!txt) return [];
+      const found = [];
+      for (const tm of teamMentions){
+        if (textIncludesAnyToken(txt, tm.tokens)) found.push(tm.team);
+      }
+      return Array.from(new Set(found));
+    }
+
+    function findEventByTeams(teamA, teamB){
+      const a = String(teamA||"").trim();
+      const b = String(teamB||"").trim();
+      if (!a || !b) return null;
+      return (Array.isArray(lastData) ? lastData : []).find(ev => {
+        const h = String(ev?.home_team||"").trim();
+        const aw = String(ev?.away_team||"").trim();
+        return (h===a && aw===b) || (h===b && aw===a);
+      }) || null;
+    }
+
+    function findUpcomingForTeam(team){
+      const t = String(team||"").trim();
+      if (!t) return null;
+      const events = (Array.isArray(lastData) ? lastData : [])
+        .filter(ev => String(ev?.home_team||"").trim()===t || String(ev?.away_team||"").trim()===t)
+        .slice()
+        .sort((x,y)=> new Date(x.commence_time).getTime() - new Date(y.commence_time).getTime());
+      return events[0] || null;
+    }
+
+    function suggestSwitchMessage(targetEv, reason){
+      const when = targetEv?.commence_time ? fmtDate(targetEv.commence_time) : "";
+      const title = `${targetEv?.home_team || "—"} vs ${targetEv?.away_team || "—"}`.trim();
+
+      const base =
+        `Ci sto 😄 Però in questo momento ho aperto un altro tabellone.\n` +
+        `Per analizzare *${title}* al meglio (quote + contesto), apri quel match dalla lista e poi te lo spacchetto in 10 secondi.\n` +
+        (when ? `⏱️ Kickoff: ${when}\n` : "") +
+        `Vuoi che lo cerchi tra le card e ti dica dove sta?`;
+
+      // reason is just for future, keep UX clean
+      return base;
+    }
+
+    function shouldInterceptAsOtherMatch(userText){
+      if (!currentEvent) return null;
+
+      const mentioned = detectMentionedTeams(userText);
+      if (!mentioned.length) return null;
+
+      const curHome = String(currentEvent?.home_team||"").trim();
+      const curAway = String(currentEvent?.away_team||"").trim();
+
+      // if user mentions BOTH teams of current match -> don't intercept
+      const mentionsCurrent =
+        mentioned.includes(curHome) || mentioned.includes(curAway) ||
+        mentioned.map(normalizeTeamForHub).includes(normalizeTeamForHub(curHome)) ||
+        mentioned.map(normalizeTeamForHub).includes(normalizeTeamForHub(curAway));
+
+      // 1) If mentions two teams -> try find that specific match
+      if (mentioned.length >= 2){
+        for (let i=0;i<mentioned.length;i++){
+          for (let j=i+1;j<mentioned.length;j++){
+            const ev = findEventByTeams(mentioned[i], mentioned[j]);
+            if (ev){
+              const isCurrent = (String(ev.id) === String(currentEvent.id));
+              if (!isCurrent) return { type:"other_match", ev };
+              return null;
+            }
+          }
+        }
+      }
+
+      // 2) Single team question (e.g. "contro chi gioca l'inter?")
+      // If team is not in current match, suggest switching to that team's next match (if present)
+      if (mentioned.length === 1 && !mentionsCurrent){
+        const t = mentioned[0];
+        const up = findUpcomingForTeam(t);
+        if (up && String(up.id) !== String(currentEvent.id)){
+          return { type:"other_team", ev: up, team: t };
+        }
+      }
+
+      return null;
+    }
+
     function bestOddsFromBookmakers(bookmakers, marketKey, outcomeName){
       const list = Array.isArray(bookmakers) ? bookmakers : [];
       let best = null;
@@ -710,8 +881,13 @@
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
     async function getContextBundleForEvent(ev){
-      const home = ev?.home_team;
-      const away = ev?.away_team;
+      // IMPORTANT: normalize only for HUB to avoid Inter/Milan ambiguity
+      const homeOriginal = ev?.home_team;
+      const awayOriginal = ev?.away_team;
+
+      const home = normalizeTeamForHub(homeOriginal);
+      const away = normalizeTeamForHub(awayOriginal);
+
       const dateStr = dateOnlyISO(ev?.commence_time);
       const key = `${home}__${away}__${dateStr}`;
 
@@ -742,7 +918,9 @@
         reason: ctx?.ok ? "ok" : "context_not_ok",
         resolve: res,
         context: ctx,
-        fixture_key: fixtureKey
+        fixture_key: fixtureKey,
+        _hub_names: { home, away, date: dateStr }, // debug info
+        _orig_names: { home: homeOriginal, away: awayOriginal }
       };
 
       contextCache.set(key, bundle);
@@ -775,6 +953,7 @@
           setDemoMode(true);
           showNotice(`⚠️ DEMO attiva: remaining=${rate.remaining ?? "?"}.`);
           lastData = buildDemoEvents();
+          rebuildIndexes();
           $.status.textContent = "stato: demo";
           $.chipCount.textContent = `match: ${lastData.length || 0}`;
           renderCards(lastData);
@@ -785,6 +964,7 @@
 
         const rawEvents = Array.isArray(data?.data) ? data.data : [];
         lastData = rawEvents.map(normalizeOddsEvent);
+        rebuildIndexes();
 
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
@@ -808,6 +988,7 @@
 
         setDemoMode(true);
         lastData = buildDemoEvents();
+        rebuildIndexes();
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
         renderCards(lastData);
         $.status.textContent = "stato: demo";
@@ -940,95 +1121,48 @@
         return `Dammi SUBITO 2 risultati esatti più probabili (con percentuali indicative o livello fiducia) e motivali in modo discorsivo.`;
       }
       if (mode === "SCORER"){
-        return `Dammi SUBITO 1–3 possibili marcatori SOLO se presenti nel contesto. Se nel contesto non ci sono nomi, dillo e proponi una strategia alternativa (es. "marcatore: no bet" o mercati diversi).`;
+        return `Dammi SUBITO un suggerimento marcatore SOLO se nel contesto ci sono nomi giocatori E sono disponibili (non infortunati / non squalificati). Se c’è anche solo dubbio, dì chiaramente che su questo mercato preferisci NON SBILANCIARTI (“marcatore: no bet”) e proponi un’alternativa più sensata (es. 1X2 o Totali).`;
       }
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
-    /* ========= NEW: rilevo se l'utente sta chiedendo di un'altra squadra/match ========= */
-    function normalizeText(s){
-      return String(s||"")
-        .toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-        .replace(/[^a-z0-9\s]/g," ")
-        .replace(/\s+/g," ")
-        .trim();
-    }
-    function escapeRegExp(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
-
-    function getAllTeamsFromBoard(){
-      const teams = new Set();
-      for (const ev of (Array.isArray(lastData) ? lastData : [])){
-        if (ev?.home_team) teams.add(String(ev.home_team).trim());
-        if (ev?.away_team) teams.add(String(ev.away_team).trim());
-      }
-      return Array.from(teams).filter(Boolean);
-    }
-
-    function findMentionedTeams(userText){
-      const text = normalizeText(userText);
-      if (!text) return [];
-
-      const teams = getAllTeamsFromBoard();
-      // match più lunghi prima per evitare "milan" dentro "inter milan"
-      teams.sort((a,b)=> b.length - a.length);
-
-      const hits = [];
-      for (const t of teams){
-        const nt = normalizeText(t);
-        if (!nt) continue;
-
-        // word-ish boundary: spazi prima/dopo oppure inizio/fine
-        const re = new RegExp(`(^|\\s)${escapeRegExp(nt)}(\\s|$)`, "i");
-        if (re.test(text)){
-          hits.push(t);
-        }
-      }
-      return Array.from(new Set(hits));
-    }
-
-    function offMatchMessage(targetTeamOrMatch){
-      const cur = currentEvent ? `${currentEvent.home_team} vs ${currentEvent.away_team}` : "questo match";
-      return `Capito 😄 Però ora sono “agganciata” su **${cur}**.\n\nPer analizzare **${targetTeamOrMatch}** in modo preciso (contesto, forma, infortuni, quote), fammi una cosa: **seleziona quel match dal tabellone** e poi riscrivimi la domanda 👉 in 2 secondi te lo faccio perfetto.`;
-    }
-
-    function shouldBlockOffMatchQuestion(userText){
-      if (!currentEvent) return { block:false, reason:"no_current" };
-
-      const mentioned = findMentionedTeams(userText);
-      if (!mentioned.length) return { block:false };
-
-      const curHome = String(currentEvent.home_team||"").trim();
-      const curAway = String(currentEvent.away_team||"").trim();
-
-      const off = mentioned.filter(t => t !== curHome && t !== curAway);
-      if (!off.length) return { block:false };
-
-      // Se l'utente chiede di un'altra squadra presente nel tabellone -> blocco e invito a cambiare match
-      return { block:true, offTeams: off, mentioned };
-    }
-
-    /* ====== PROMPT: stesso rigore, ma risposta più “umana” quando manca un dato ====== */
     function buildAntiHallucinationPrompt(userText, mode, bundle){
       const hasCtx = !!(bundle && bundle.ok && (bundle.context?.context || bundle.context));
       const ctxNote = hasCtx
-        ? "Hai un CONTESTO dati per questo match. Usalo."
-        : "Non hai contesto completo per questo match: NON inventare dati (classifica, forma, indisponibili, marcatori, ultimi risultati).";
+        ? "Hai un CONTESTO dati (classifica/forma/infortuni/marcatori/h2h quando presenti). Usalo."
+        : "NON hai contesto: NON inventare dati (classifica, forma, indisponibili, marcatori).";
+
+      const home = currentEvent?.home_team || "";
+      const away = currentEvent?.away_team || "";
 
       return [
-        "REGOLE (OBBLIGATORIE):",
-        "- Non inventare NESSUN dato. Se non lo vedi nel contesto, NON lo dare.",
-        "- Se manca un dato, NON dire 'dato non disponibile nel contesto' in modo freddo.",
-        "  Usa un tono umano e breve, tipo: 'Ops, qui mi manca quel dettaglio 😅 Se vuoi, seleziona il match corretto e te lo recupero'.",
+        "SEI BETTY (NextScore).",
         "",
-        "OUTPUT:",
-        "- Non dire: 'Ok dimmi cosa vuoi sapere'. Dai SUBITO una risposta utile.",
-        "- Se la domanda è sul mercato: (1) Giocata principale (2) Alternativa prudente (3) Fiducia (basso/medio/alto) + 1 domanda finale breve.",
-        "- Se la domanda è informativa (classifica, infortuni, ultimi risultati): rispondi SOLO con dati certi; se non li hai, guida l’utente su come ottenerli (selezionare match/tabellone).",
+        "REGOLA ASSOLUTA ANTI-ALLUCINAZIONI:",
+        "- Non inventare NESSUN dato su rosa, indisponibili, squalificati, classifica, ultimi risultati.",
+        "- Usa SOLO ciò che trovi in `context` quando presente.",
+        "- Se manca un dato, NON dire 'dato non disponibile nel contesto' in modo freddo.",
+        "  Usa una risposta più umana e breve (es: 'Ops, questo dettaglio qui mi sfugge 😅 Se vuoi, apri il match giusto e lo recupero al volo.').",
+        "",
+        "COMPITO CHIAVE (molto importante):",
+        `- Il match attualmente aperto nel tabellone è: ${home} vs ${away}.`,
+        "- Se l’utente chiede di un ALTRO match o di un’altra squadra non collegata a questo match:",
+        "  NON dire che 'non hai accesso'.",
+        "  Di': che per analizzare quell’altro match deve aprire il tabellone giusto (aprire la card del match) e proponi cosa farai appena lo apre.",
+        "",
+        "OBBLIGO DI OUTPUT:",
+        "- NON dire: 'Ok 👍 dimmi cosa vuoi sapere'.",
+        "- Devi dare SUBITO una risposta utile e concreta.",
+        "- Se la domanda è su un mercato (tab): struttura (1) Giocata principale (2) Alternativa prudente (3) Fiducia basso/medio/alto.",
+        "- Se la domanda è informativa (infortuni/squalificati/classifica/ultimi risultati): rispondi in modo diretto e sintetico.",
+        "",
+        "LINGUA & STILE:",
+        "- Italiano naturale, amichevole, premium.",
+        "- Se nel contesto trovi tipologie di infortunio in inglese (es. 'Knee Injury'), traducile in italiano (es. 'infortunio al ginocchio').",
         "",
         ctxNote,
         "",
-        "DOMANDA UTENTE:",
+        "RICHIESTA UTENTE:",
         userText || ""
       ].join("\n");
     }
@@ -1059,13 +1193,6 @@
       if (!currentEvent){
         addBettyBubble("Seleziona prima un match 😊");
         return "";
-      }
-
-      /* ========= NEW: se domanda è su altra squadra/match -> messaggio figo e stop call ========= */
-      const check = shouldBlockOffMatchQuestion(userText);
-      if (check.block){
-        const target = check.offTeams.length === 1 ? check.offTeams[0] : check.offTeams.join(" / ");
-        return offMatchMessage(target);
       }
 
       const sportKey = chosenSport();
@@ -1148,6 +1275,7 @@
       if (custom) $.sportCustom.focus();
     });
 
+    // ====== TAB CLICK: richiesta forte immediata ======
     $.tabBtns.forEach(btn=>{
       btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
@@ -1173,12 +1301,25 @@
       });
     });
 
+    // ====== SEND: se chiedono altro match/squadra, NON chiamiamo backend: suggeriamo switch tabellone ======
     $.sendBtn.addEventListener("click", async ()=>{
       const t = $.chatInput.value.trim();
       if (!t) return;
       $.chatInput.value = "";
 
       addUserBubble(t);
+
+      // Intercetta richieste su altro match / altra squadra
+      const intercept = shouldInterceptAsOtherMatch(t);
+      if (intercept && intercept.ev){
+        const msg = suggestSwitchMessage(intercept.ev, intercept.type);
+        addBettyBubble(msg);
+        // Non sporchiamo history con chiamate "false"
+        chatHistory.push({ role:"user", content: t });
+        chatHistory.push({ role:"assistant", content: msg });
+        return;
+      }
+
       chatHistory.push({ role:"user", content: t });
 
       const th = addThinking();
