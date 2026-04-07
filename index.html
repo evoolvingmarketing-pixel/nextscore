@@ -209,6 +209,12 @@
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
+    .marketHint{
+      font-size:12px;
+      color:#64748b;
+      margin-top:8px;
+    }
+
     @media (min-width: 900px){
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
@@ -319,6 +325,7 @@
         <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
         <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
+        <button class="tabBtn" data-mode="SPREADS" id="tabSPREADS">Handicap</button>
         <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
         <button class="tabBtn" data-mode="COMBOS" id="tabCOMBOS">Combo/Multiple</button>
       </div>
@@ -329,7 +336,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Fammi una multipla prudente')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Meglio Over o Gol?' )"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -349,14 +356,29 @@
         home_team: home,
         away_team: away,
         outcomes: [
-          { name:"Home", prob: null, odds: 1.90 },
-          { name:"Draw", prob: null, odds: 3.40 },
-          { name:"Away", prob: null, odds: 4.20 },
+          { name:"Home", prob:null, odds:1.90 },
+          { name:"Draw", prob:null, odds:3.40 },
+          { name:"Away", prob:null, odds:4.20 },
         ],
         totals: [
           { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] },
           { point: 1.5, outcomes:[ {name:"Over", prob:null, odds:1.28}, {name:"Under", prob:null, odds:3.20} ] },
           { point: 3.5, outcomes:[ {name:"Over", prob:null, odds:2.45}, {name:"Under", prob:null, odds:1.45} ] }
+        ],
+        btts: {
+          outcomes: [
+            { name:"Yes", prob:null, odds:1.80 },
+            { name:"No", prob:null, odds:1.95 }
+          ]
+        },
+        spreads: [
+          {
+            point: -0.5,
+            outcomes: [
+              { name:"Home", prob:null, odds:2.02 },
+              { name:"Away", prob:null, odds:1.76 }
+            ]
+          }
         ]
       });
       return [
@@ -394,6 +416,7 @@
       tabOPEN: el("tabOPEN"),
       tabTOTALS: el("tabTOTALS"),
       tabBTTS: el("tabBTTS"),
+      tabSPREADS: el("tabSPREADS"),
       tabEXACT: el("tabEXACT"),
       tabCOMBOS: el("tabCOMBOS"),
 
@@ -778,6 +801,79 @@
       return Array.from(map.values()).sort((a,b)=> a.point - b.point);
     }
 
+    function collectBttsMarket(bookmakers){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      let yes = null;
+      let no = null;
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === "btts");
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        for (const o of outcomes){
+          const name = String(o?.name || "").toLowerCase();
+          const price = Number(o?.price);
+          if (!Number.isFinite(price) || price <= 0) continue;
+
+          if (name === "yes" && (yes == null || price > yes)) yes = price;
+          if (name === "no" && (no == null || price > no)) no = price;
+        }
+      }
+
+      if (yes == null && no == null) return null;
+
+      return {
+        outcomes: [
+          { name:"Yes", prob:null, odds:yes },
+          { name:"No", prob:null, odds:no }
+        ]
+      };
+    }
+
+    function collectSpreadsMarkets(bookmakers, homeTeam, awayTeam){
+      const list = Array.isArray(bookmakers) ? bookmakers : [];
+      const map = new Map();
+
+      for (const bm of list){
+        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
+        const m = markets.find(x => x?.key === "spreads");
+        if (!m) continue;
+
+        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
+        for (const o of outcomes){
+          const point = Number(o?.point);
+          const name = String(o?.name || "");
+          const price = Number(o?.price);
+          if (!Number.isFinite(point) || !Number.isFinite(price) || price <= 0) continue;
+
+          if (!map.has(point)){
+            map.set(point, {
+              point,
+              outcomes: [
+                { name:"Home", prob:null, odds:null },
+                { name:"Away", prob:null, odds:null }
+              ]
+            });
+          }
+
+          const normalizedName =
+            name === homeTeam ? "Home" :
+            name === awayTeam ? "Away" :
+            name;
+
+          const row = map.get(point);
+          const target = row.outcomes.find(x => x.name.toLowerCase() === String(normalizedName).toLowerCase());
+          if (target && (target.odds == null || price > target.odds)){
+            target.odds = price;
+          }
+        }
+      }
+
+      return Array.from(map.values()).sort((a,b)=> a.point - b.point);
+    }
+
     function normalizeOddsEvent(ev){
       const home = ev?.home_team;
       const away = ev?.away_team;
@@ -788,6 +884,8 @@
       const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
 
       const totals = collectTotalsMarkets(bms);
+      const btts = collectBttsMarket(bms);
+      const spreads = collectSpreadsMarkets(bms, home, away);
 
       return {
         id: ev?.id,
@@ -800,6 +898,8 @@
           { name:"Away", prob: null, odds: qAway },
         ],
         totals,
+        btts,
+        spreads,
         _raw: ev
       };
     }
@@ -813,7 +913,7 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals");
+      url.searchParams.set("markets", "h2h,totals,btts,spreads");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
@@ -962,6 +1062,7 @@
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
       const totals = Array.isArray(ev.totals) ? ev.totals : [];
+      const spreads = Array.isArray(ev.spreads) ? ev.spreads : [];
 
       const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
       const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
@@ -971,6 +1072,14 @@
       const line = t0?.point ?? null;
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
+
+      const bttsYes = ev?.btts?.outcomes?.find(x => /yes/i.test(x.name))?.odds ?? null;
+      const bttsNo = ev?.btts?.outcomes?.find(x => /no/i.test(x.name))?.odds ?? null;
+
+      const s0 = spreads[0];
+      const spreadLine = s0?.point ?? null;
+      const spreadHome = s0?.outcomes?.find(x=>/home/i.test(x.name))?.odds ?? null;
+      const spreadAway = s0?.outcomes?.find(x=>/away/i.test(x.name))?.odds ?? null;
 
       const pill = (v)=> (typeof v === "number" ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
 
@@ -1012,7 +1121,22 @@
               <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
               <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Gol / NoGol</div>
+              <div class="flex items-center justify-between text-sm"><span>Gol</span>${pill(bttsYes)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>NoGol</span>${pill(bttsNo)}</div>
+              <div class="marketHint">Se il mercato non è disponibile, vedrai “—”.</div>
+            </div>
+
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Handicap ${spreadLine != null ? `(linea ${esc(spreadLine)})` : ""}</div>
+              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(spreadHome)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(spreadAway)}</div>
+              <div class="marketHint">Usa la prima linea disponibile restituita da The Odds API.</div>
             </div>
           </div>
 
@@ -1048,6 +1172,7 @@
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
       $.tabBTTS.classList.toggle("hidden", !soccer);
+      $.tabSPREADS.classList.toggle("hidden", !soccer);
       $.tabEXACT.classList.toggle("hidden", !soccer);
       $.tabCOMBOS.classList.remove("hidden");
 
@@ -1060,6 +1185,7 @@
     function buildStrongMarketRequest(mode, ev){
       const line = Array.isArray(ev?.totals) && ev.totals.length ? ev.totals[0]?.point : null;
       const hasLine = (typeof line === "number");
+      const spreadLine = Array.isArray(ev?.spreads) && ev.spreads.length ? ev.spreads[0]?.point : null;
 
       if (mode === "TOTALS"){
         return hasLine
@@ -1068,6 +1194,11 @@
       }
       if (mode === "BTTS"){
         return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
+      }
+      if (mode === "SPREADS"){
+        return spreadLine != null
+          ? `Dammi SUBITO una previsione handicap sulla linea ${spreadLine}. Scegli una sola giocata principale e motivala con 3 punti (quote + contesto). Poi proponi una alternativa prudente.`
+          : `Dammi SUBITO una previsione handicap/spread. Se manca la linea, dichiaralo chiaramente e proponi una lettura alternativa del match.`;
       }
       if (mode === "EXACT"){
         return `Dammi SUBITO 2 risultati esatti più probabili (con livello fiducia) e motivali in modo discorsivo.`;
@@ -1110,6 +1241,7 @@
         "REGOLA ASSOLUTA ANTI-ALLUCINAZIONI:",
         "- Non inventare NESSUN dato su rosa, indisponibili, squalificati, classifica, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
+        "- Usa SOLO quote e mercati realmente presenti in `event`.",
         "- Se manca un dato, non usare una formula fredda.",
         "  Usa una risposta umana e breve.",
         "",
@@ -1232,6 +1364,17 @@
       return row?.outcomes?.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
     }
 
+    function getBttsOdds(ev, name){
+      const rows = ev?.btts?.outcomes || [];
+      return rows.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
+    }
+
+    function getSpreadOdds(ev, point, name){
+      const rows = Array.isArray(ev?.spreads) ? ev.spreads : [];
+      const row = rows.find(r => Number(r?.point) === Number(point));
+      return row?.outcomes?.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
+    }
+
     function pickSelectionForMatch(ev){
       const over15 = getTotalOdds(ev, 1.5, "Over");
       if (typeof over15 === "number"){
@@ -1245,6 +1388,33 @@
         };
       }
 
+      const bttsYes = getBttsOdds(ev, "Yes");
+      if (typeof bttsYes === "number"){
+        return {
+          match_id: ev.id,
+          home_team: ev.home_team,
+          away_team: ev.away_team,
+          market: "BTTS",
+          pick: "Gol",
+          odds: bttsYes
+        };
+      }
+
+      const firstSpread = Array.isArray(ev?.spreads) ? ev.spreads[0] : null;
+      if (firstSpread && typeof firstSpread.point === "number"){
+        const spreadHome = getSpreadOdds(ev, firstSpread.point, "Home");
+        if (typeof spreadHome === "number"){
+          return {
+            match_id: ev.id,
+            home_team: ev.home_team,
+            away_team: ev.away_team,
+            market: "Handicap",
+            pick: `${ev.home_team} ${firstSpread.point}`,
+            odds: spreadHome
+          };
+        }
+      }
+
       const under45 = getTotalOdds(ev, 4.5, "Under");
       if (typeof under45 === "number"){
         return {
@@ -1254,30 +1424,6 @@
           market: "Totali",
           pick: "Under 4.5",
           odds: under45
-        };
-      }
-
-      const over25 = getTotalOdds(ev, 2.5, "Over");
-      if (typeof over25 === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market: "Totali",
-          pick: "Over 2.5",
-          odds: over25
-        };
-      }
-
-      const under35 = getTotalOdds(ev, 3.5, "Under");
-      if (typeof under35 === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market: "Totali",
-          pick: "Under 3.5",
-          odds: under35
         };
       }
 
