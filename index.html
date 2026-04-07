@@ -1067,10 +1067,10 @@
           : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
       }
       if (mode === "BTTS"){
-        return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
+        return `Dammi una previsione LOGICA Gol/NoGol basata sul contesto del match, sul profilo offensivo/difensivo delle squadre e sui segnali indiretti delle quote disponibili. Non inventare quote BTTS se non sono presenti. Restituisci: (1) previsione principale tra Gol o NoGol (2) spiegazione del perché (3) livello di fiducia.`;
       }
       if (mode === "EXACT"){
-        return `Dammi SUBITO 2 risultati esatti più probabili (con livello fiducia) e motivali in modo discorsivo.`;
+        return `Dammi 2 risultati esatti PIÙ PLAUSIBILI come lettura logica della partita, usando solo contesto reale e segnali indiretti da 1X2 e Under/Over quando utili. Non inventare quote del risultato esatto. Restituisci: (1) risultato esatto più plausibile (2) alternativa credibile (3) spiegazione sintetica (4) livello di fiducia.`;
       }
       if (mode === "COMBOS"){
         return `Crea una multipla usando più partite del tabellone attuale. Usa SOLO le selezioni che trovi in event.selections e non inventare quote. Restituisci: schedina proposta, breve logica, livello di rischio e una alternativa prudente.`;
@@ -1110,6 +1110,10 @@
         "REGOLA ASSOLUTA ANTI-ALLUCINAZIONI:",
         "- Non inventare NESSUN dato su rosa, indisponibili, squalificati, classifica, ultimi risultati.",
         "- Usa SOLO ciò che trovi in `context` quando presente.",
+        "- Usa SOLO quote e linee davvero presenti in `event`.",
+        "- Per BTTS, risultato esatto e mercati non presenti esplicitamente in event, puoi fare SOLO una previsione logica basata su contesto e segnali indiretti.",
+        "- Non inventare mai quote mancanti.",
+        "- Se un mercato non è disponibile in event, non citarne una quota: parla di scenario partita e fiducia.",
         "- Se manca un dato, non usare una formula fredda.",
         "  Usa una risposta umana e breve.",
         "",
