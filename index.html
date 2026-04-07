@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NextScore — Match Center</title>
+  <title>NextScore — Match Center (Light)</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text y='50' font-size='50'>⚡</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
@@ -11,164 +11,70 @@
 
   <style>
     :root{
-      --bg:#f8fafc;
+      --bg:#ffffff;
       --panel:#ffffff;
-      --panel2:#ffffff;
       --text:#0f172a;
       --muted:#64748b;
-      --border:rgba(15,23,42,.10);
-      --shadow: 0 18px 46px rgba(2,6,23,.08);
+      --border:rgba(2,6,23,.10);
+      --shadow: 0 16px 40px rgba(2,6,23,.08);
       --accent:#f59e0b;
       --accent2:#fb923c;
       --soft:#fff7ed;
-      --soft2:#fef3c7;
-      --dark:#111827;
     }
-
-    html,body{
-      font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
-      background:linear-gradient(180deg,#ffffff 0%, #f8fafc 100%);
-      color:var(--text);
-    }
-
+    html,body{ font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--text); }
     .cardShadow{ box-shadow: var(--shadow); }
-
     .chip{
-      font-size:12px;
-      line-height:1;
-      padding:7px 11px;
-      border-radius:999px;
+      font-size:12px; line-height:1;
+      padding:6px 10px; border-radius:999px;
       border:1px solid var(--border);
-      background:#fff;
+      background: #fff;
       color:#0f172a;
       white-space:nowrap;
-      font-weight:700;
     }
-
-    .chipAccent{
-      border-color:rgba(245,158,11,.35);
-      background:linear-gradient(135deg,#fff7ed 0%, #ffffff 100%);
-      color:#9a3412;
-    }
-
     .btn{
       border-radius:14px;
       padding:10px 14px;
       font-weight:800;
       border:1px solid var(--border);
       background:#fff;
-      transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+      transition: transform .08s ease, box-shadow .12s ease;
       cursor:pointer;
     }
-
-    .btn:hover{
-      transform: translateY(-1px);
-      box-shadow:0 10px 24px rgba(2,6,23,.10);
-    }
-
+    .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 24px rgba(2,6,23,.10); }
     .btnPrimary{
       border:1px solid rgba(245,158,11,.35);
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
       color:#111827;
     }
-
-    .btnPrimary:hover{
-      box-shadow:0 16px 40px rgba(245,158,11,.22);
-    }
-
+    .btnPrimary:hover{ box-shadow:0 16px 40px rgba(245,158,11,.22); }
     .input{
       width:100%;
       border-radius:14px;
       border:1px solid var(--border);
       background:#fff;
-      padding:11px 12px;
+      padding:10px 12px;
       color:#0f172a;
       outline:none;
-      font-weight:500;
     }
-
     .input:focus{
       border-color: rgba(245,158,11,.55);
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
     }
 
-    .heroWrap{
-      position:relative;
-      overflow:hidden;
-      border:1px solid var(--border);
-      border-radius:28px;
-      background:
-        radial-gradient(circle at top right, rgba(251,146,60,.20) 0%, rgba(251,146,60,0) 35%),
-        radial-gradient(circle at top left, rgba(245,158,11,.14) 0%, rgba(245,158,11,0) 30%),
-        linear-gradient(180deg,#ffffff 0%, #fffaf2 100%);
-    }
-
-    .heroGlow{
-      position:absolute;
-      inset:auto -10% -40% auto;
-      width:340px;
-      height:340px;
-      border-radius:999px;
-      background:radial-gradient(circle, rgba(245,158,11,.18) 0%, rgba(245,158,11,0) 70%);
-      pointer-events:none;
-      filter:blur(8px);
-    }
-
-    .notice{
-      border-radius:18px;
-      border:1px solid rgba(245,158,11,.30);
-      background:var(--soft);
-      color:#7c2d12;
-      padding:14px 16px;
-      font-size:14px;
-      line-height:1.4;
-    }
-
-    .matchCard{
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:24px;
-      padding:18px;
-      position:relative;
-      overflow:hidden;
-    }
-
-    .matchCard::before{
-      content:"";
-      position:absolute;
-      inset:0 auto auto 0;
-      width:100%;
-      height:1px;
-      background:linear-gradient(90deg, rgba(245,158,11,.45), rgba(251,146,60,0));
-    }
-
     .tlogo{
-      width:38px;
-      height:38px;
-      border-radius:999px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
+      width:34px;height:34px;border-radius:999px;
+      display:inline-flex;align-items:center;justify-content:center;
       border:1px solid rgba(2,6,23,.10);
       background:#fff;
       overflow:hidden;
       flex:0 0 auto;
     }
-
-    .tlogo img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      display:block;
-      background:#fff;
-    }
-
+    .tlogo img{ width:100%;height:100%;object-fit:contain; display:block; }
     .tlogo.fallback{
       font-weight:900;
       color:#0f172a;
       background:#f8fafc;
     }
-
     .vsPill{
       padding:4px 10px;
       border-radius:999px;
@@ -179,71 +85,8 @@
       color:#7c2d12;
     }
 
-    .marketBox{
-      border:1px solid rgba(2,6,23,.08);
-      border-radius:18px;
-      padding:14px;
-      background:#fff;
-    }
-
-    .marketRow{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      font-size:14px;
-    }
-
-    .marketRow + .marketRow{
-      margin-top:10px;
-    }
-
-    .oddPill{
-      min-width:58px;
-      text-align:center;
-      border-radius:999px;
-      padding:7px 10px;
-      border:1px solid rgba(2,6,23,.10);
-      background:#fff;
-      font-weight:900;
-      font-size:13px;
-    }
-
-    .oddPill.muted{
-      opacity:.55;
-    }
-
-    .miniGrid{
-      display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:10px;
-    }
-
-    .miniStat{
-      border:1px solid rgba(2,6,23,.08);
-      border-radius:16px;
-      padding:10px 12px;
-      background:#fff;
-    }
-
-    .miniStat .k{
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:.04em;
-      text-transform:uppercase;
-      color:#64748b;
-      margin-bottom:4px;
-    }
-
-    .miniStat .v{
-      font-size:14px;
-      font-weight:900;
-      color:#0f172a;
-    }
-
     .modalOverlay{
-      position:fixed;
-      inset:0;
+      position:fixed; inset:0;
       background: rgba(2,6,23,.45);
       display:none;
       align-items:flex-end;
@@ -251,97 +94,81 @@
       padding:14px;
       z-index:9999;
     }
-
     .modalOverlay.show{ display:flex; }
-
     .modal{
       width:100%;
-      max-width:1020px;
+      max-width:980px;
       background:#fff;
       border:1px solid var(--border);
-      border-radius:24px;
+      border-radius:22px;
       box-shadow: 0 24px 70px rgba(2,6,23,.22);
       overflow:hidden;
       max-height: 92vh;
       display:flex;
       flex-direction:column;
     }
-
     .modalHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
+      display:flex; align-items:center; justify-content:space-between;
       padding:14px 16px;
       border-bottom:1px solid var(--border);
       background: linear-gradient(180deg, #ffffff 0%, #fffaf2 100%);
     }
-
     .avatar{
-      width:36px;
-      height:36px;
+      width:34px; height:34px;
       border-radius:999px;
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      background:#fff7ed;
+      background: #fff7ed;
       border:1px solid rgba(245,158,11,.30);
       font-size:18px;
       flex:0 0 auto;
       overflow:hidden;
     }
-
     .modalBody{
       padding:14px 14px 0 14px;
       overflow:auto;
     }
-
     .chatFeed{
       padding:4px 2px 12px 2px;
       display:flex;
       flex-direction:column;
       gap:10px;
     }
-
     .bubbleRow{
       display:flex;
       gap:10px;
       align-items:flex-end;
     }
-
     .bubble{
-      max-width: 850px;
+      max-width: 820px;
       border-radius:18px;
-      padding:11px 13px;
+      padding:10px 12px;
       border:1px solid var(--border);
       background:#fff;
-      line-height:1.42;
+      line-height:1.35;
       font-size:14px;
       white-space:pre-wrap;
     }
-
     .bubbleUser{
       margin-left:auto;
       background:#111827;
       color:#fff;
       border:1px solid rgba(2,6,23,.18);
     }
-
     .bubbleBetty{ background:#fff; }
-
     .miniName{
       font-size:12px;
       color:#0f172a;
       font-weight:900;
       margin-bottom:2px;
     }
-
     .microTabs{
       display:flex;
       gap:8px;
       padding:10px 14px 0 14px;
       flex-wrap:wrap;
     }
-
     .tabBtn{
       border-radius:999px;
       padding:8px 12px;
@@ -351,17 +178,12 @@
       background:#fff;
       color:#0f172a;
       cursor:pointer;
-      transition:.12s ease;
     }
-
     .tabBtn.active{
       border-color: rgba(245,158,11,.50);
-      background:#fff7ed;
+      background: #fff7ed;
     }
-
-    .tabBtn.hidden{
-      display:none !important;
-    }
+    .tabBtn.hidden{ display:none !important; }
 
     .modalFooter{
       border-top:1px solid var(--border);
@@ -371,7 +193,6 @@
       align-items:flex-end;
       background:#fff;
     }
-
     .textarea{
       width:100%;
       min-height:44px;
@@ -383,7 +204,6 @@
       outline:none;
       font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
     }
-
     .textarea:focus{
       border-color: rgba(245,158,11,.55);
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
@@ -393,100 +213,82 @@
       .modalOverlay{ align-items:center; }
       .modal{ max-height: 86vh; }
     }
-
-    @media (max-width: 767px){
-      .miniGrid{
-        grid-template-columns:1fr;
-      }
-    }
   </style>
 </head>
 
 <body>
   <div class="max-w-6xl mx-auto px-4 py-6 md:py-8">
-    <section class="heroWrap cardShadow mb-6">
-      <div class="heroGlow"></div>
+    <header class="flex items-start md:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          NextScore <span class="text-amber-600">Match Center</span>
+        </h1>
+        <p class="text-sm md:text-base text-slate-600 mt-1">
+          Seleziona un match e leggi l’analisi di <strong>Betty</strong>
+          <span class="text-slate-500">(con contesto: forma, classifica, indisponibili)</span>.
+        </p>
+      </div>
 
-      <div class="relative p-5 md:p-7">
-        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
-          <div class="max-w-3xl">
-            <div class="inline-flex items-center gap-2 chip chipAccent mb-4">
-              <span>⚡</span>
-              <span>Versione ufficiale NextScore</span>
+      <div class="text-xs text-slate-500 text-right">
+        <div id="rateInfo">rate: …</div>
+        <div id="statusInfo">stato: pronto</div>
+      </div>
+    </header>
+
+    <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
+      <div class="p-4 md:p-5">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
+            <select id="sport" class="input">
+              <option value="soccer_italy_serie_a">Calcio — Serie A</option>
+              <option value="soccer_epl">Calcio — Premier League</option>
+              <option value="soccer_spain_la_liga">Calcio — La Liga</option>
+              <option value="soccer_germany_bundesliga">Calcio — Bundesliga</option>
+              <option value="soccer_france_ligue_one">Calcio — Ligue 1</option>
+              <option value="soccer_uefa_champs_league">UEFA — Champions League</option>
+              <option value="soccer_uefa_europa_league">UEFA — Europa League</option>
+              <option value="soccer_uefa_europa_conference_league">UEFA — Conference League</option>
+              <option value="basketball_nba">Basket — NBA</option>
+              <option value="tennis_atp">Tennis — ATP</option>
+              <option value="custom">— Altro (custom) —</option>
+            </select>
+            <input id="sportCustom" type="text" class="input mt-2 hidden" placeholder="es. soccer_uefa_champs_league" />
+            <div class="text-[12px] text-slate-500 mt-1">
+              Se non trovi una competizione: usa “custom” e incolla la <strong>sport_key</strong>.
             </div>
-
-            <h1 class="text-3xl md:text-5xl font-black tracking-tight leading-[1.05] text-slate-900">
-              NextScore <span class="text-amber-600">Match Center</span>
-            </h1>
-
-            <p class="text-sm md:text-base text-slate-600 mt-3 max-w-2xl leading-relaxed">
-              Seleziona un match, confronta i mercati principali e leggi l’analisi di
-              <strong>Betty AI</strong> con contesto partita, quote e mercati avanzati.
-            </p>
           </div>
 
-          <div class="text-xs text-slate-500 md:text-right">
-            <div id="rateInfo">rate: …</div>
-            <div id="statusInfo">stato: pronto</div>
+          <div>
+            <label class="block text-sm font-bold text-slate-800 mb-1">Regione</label>
+            <select id="regions" class="input">
+              <option value="eu">EU</option>
+              <option value="uk">UK</option>
+              <option value="us">US</option>
+              <option value="au">AU</option>
+            </select>
+          </div>
+
+          <div class="flex items-end gap-2">
+            <button id="refreshBtn" class="btn btnPrimary w-full">Aggiorna Match</button>
           </div>
         </div>
 
-        <div class="mt-5 bg-white rounded-2xl border cardShadow" style="border-color:var(--border); box-shadow:none;">
-          <div class="p-4 md:p-5">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div class="md:col-span-2">
-                <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
-                <select id="sport" class="input">
-                  <option value="soccer_italy_serie_a">Calcio — Serie A</option>
-                  <option value="soccer_epl">Calcio — Premier League</option>
-                  <option value="soccer_spain_la_liga">Calcio — La Liga</option>
-                  <option value="soccer_germany_bundesliga">Calcio — Bundesliga</option>
-                  <option value="soccer_france_ligue_one">Calcio — Ligue 1</option>
-                  <option value="soccer_uefa_champs_league">UEFA — Champions League</option>
-                  <option value="soccer_uefa_europa_league">UEFA — Europa League</option>
-                  <option value="soccer_uefa_europa_conference_league">UEFA — Conference League</option>
-                  <option value="basketball_nba">Basket — NBA</option>
-                  <option value="tennis_atp">Tennis — ATP</option>
-                  <option value="custom">— Altro (custom) —</option>
-                </select>
-
-                <input id="sportCustom" type="text" class="input mt-2 hidden" placeholder="es. soccer_uefa_champs_league" />
-
-                <div class="text-[12px] text-slate-500 mt-1">
-                  Se non trovi una competizione, usa “custom” e incolla la <strong>sport_key</strong>.
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-bold text-slate-800 mb-1">Regione</label>
-                <select id="regions" class="input">
-                  <option value="eu">EU</option>
-                  <option value="uk">UK</option>
-                  <option value="us">US</option>
-                  <option value="au">AU</option>
-                </select>
-              </div>
-
-              <div class="flex items-end gap-2">
-                <button id="refreshBtn" class="btn btnPrimary w-full">Aggiorna Match</button>
-              </div>
-            </div>
-
-            <div class="mt-4 flex flex-wrap items-center gap-2">
-              <span class="chip" id="chipCount">match: —</span>
-              <span class="chip" id="chipMode">modalità: live</span>
-              <span class="chip">stile: official</span>
-              <span class="chip chipAccent">AI: Betty 🧙‍♀️</span>
-              <span class="chip" id="chipContext">context: —</span>
-            </div>
-          </div>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="chip" id="chipCount">match: —</span>
+          <span class="chip" id="chipMode">modalità: live</span>
+          <span class="chip">stile: light premium</span>
+          <span class="chip">AI: Betty 🧙‍♀️</span>
+          <span class="chip" id="chipContext">context: —</span>
         </div>
       </div>
     </section>
 
-    <div id="notice" class="hidden notice mb-5"></div>
+    <div id="notice" class="hidden mt-4 rounded-2xl border px-4 py-3 text-sm"
+         style="border-color: rgba(245,158,11,.30); background: var(--soft); color:#7c2d12;">
+    </div>
 
-    <section id="cards" class="grid gap-4 md:grid-cols-2"></section>
+    <section id="cards" class="mt-5 grid gap-4 md:grid-cols-2"></section>
   </div>
 
   <div id="modalOverlay" class="modalOverlay" aria-hidden="true">
@@ -496,9 +298,9 @@
           <div class="avatar" aria-hidden="true">🧙‍♀️</div>
 
           <div class="flex flex-col gap-1">
-            <div class="text-sm font-extrabold leading-tight">Betty AI</div>
+            <div class="text-sm font-extrabold leading-tight">Betty</div>
 
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
               <div id="mhHomeLogo" class="tlogo fallback" title="Home">H</div>
               <div id="mhHomeName" class="text-xs font-extrabold text-slate-800">—</div>
               <span class="vsPill">VS</span>
@@ -517,7 +319,6 @@
         <button class="tabBtn active" data-mode="OPEN" id="tabOPEN">Analisi</button>
         <button class="tabBtn" data-mode="TOTALS" id="tabTOTALS">Under/Over</button>
         <button class="tabBtn" data-mode="BTTS" id="tabBTTS">Gol/NoGol</button>
-        <button class="tabBtn" data-mode="SPREADS" id="tabSPREADS">Handicap</button>
         <button class="tabBtn" data-mode="EXACT" id="tabEXACT">Risultato Esatto</button>
         <button class="tabBtn" data-mode="COMBOS" id="tabCOMBOS">Combo/Multiple</button>
       </div>
@@ -528,7 +329,7 @@
       </div>
 
       <div class="modalFooter">
-        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?', 'Meglio Over o BTTS?' oppure 'Fammi una multipla prudente')"></textarea>
+        <textarea id="chatInput" class="textarea" rows="2" placeholder="Scrivi una domanda (es. 'Che partita sarà?' oppure 'Fammi una multipla prudente')"></textarea>
         <button id="sendBtn" class="btn btnPrimary" style="min-width:120px;">Invia</button>
       </div>
     </div>
@@ -540,66 +341,24 @@
     const BETTY_BASE = "https://betty-chat-299332443653.europe-west8.run.app";
     const MAX_COUNT = 100;
 
-    const TEAM_LOGO_OVERRIDES = {
-      "Inter": "https://media.api-sports.io/football/teams/505.png",
-      "Juventus": "https://media.api-sports.io/football/teams/496.png",
-      "Fiorentina": "https://media.api-sports.io/football/teams/502.png",
-      "Lazio": "https://media.api-sports.io/football/teams/487.png",
-      "Napoli": "https://media.api-sports.io/football/teams/492.png",
-      "AS Roma": "https://media.api-sports.io/football/teams/497.png",
-      "Roma": "https://media.api-sports.io/football/teams/497.png",
-      "AC Milan": "https://media.api-sports.io/football/teams/489.png",
-      "Milan": "https://media.api-sports.io/football/teams/489.png",
-      "Atalanta": "https://media.api-sports.io/football/teams/499.png",
-      "Bologna": "https://media.api-sports.io/football/teams/500.png",
-      "Torino": "https://media.api-sports.io/football/teams/503.png",
-      "Udinese": "https://media.api-sports.io/football/teams/494.png",
-      "Genoa": "https://media.api-sports.io/football/teams/495.png",
-      "Verona": "https://media.api-sports.io/football/teams/504.png",
-      "Cagliari": "https://media.api-sports.io/football/teams/490.png",
-      "Parma": "https://media.api-sports.io/football/teams/523.png",
-      "Lecce": "https://media.api-sports.io/football/teams/867.png",
-      "Empoli": "https://media.api-sports.io/football/teams/511.png",
-      "Venezia": "https://media.api-sports.io/football/teams/517.png",
-      "Monza": "https://media.api-sports.io/football/teams/1579.png"
-    };
-
     function buildDemoEvents(){
       const now = Date.now();
-      const mk = (id, home, away, mins, homeLogo = null, awayLogo = null) => ({
+      const mk = (id, home, away, mins) => ({
         id,
         commence_time: new Date(now + mins*60*1000).toISOString(),
         home_team: home,
         away_team: away,
-        home_logo: homeLogo || TEAM_LOGO_OVERRIDES[home] || null,
-        away_logo: awayLogo || TEAM_LOGO_OVERRIDES[away] || null,
         outcomes: [
-          { name:"Home", prob:null, odds:1.90 },
-          { name:"Draw", prob:null, odds:3.40 },
-          { name:"Away", prob:null, odds:4.20 },
+          { name:"Home", prob: null, odds: 1.90 },
+          { name:"Draw", prob: null, odds: 3.40 },
+          { name:"Away", prob: null, odds: 4.20 },
         ],
         totals: [
-          { point:2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] },
-          { point:1.5, outcomes:[ {name:"Over", prob:null, odds:1.28}, {name:"Under", prob:null, odds:3.20} ] },
-          { point:3.5, outcomes:[ {name:"Over", prob:null, odds:2.45}, {name:"Under", prob:null, odds:1.45} ] }
-        ],
-        btts:{
-          outcomes:[
-            { name:"Yes", prob:null, odds:1.82 },
-            { name:"No", prob:null, odds:1.95 }
-          ]
-        },
-        spreads:[
-          {
-            point:-0.5,
-            outcomes:[
-              { name:"Home", prob:null, odds:2.05 },
-              { name:"Away", prob:null, odds:1.73 }
-            ]
-          }
+          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] },
+          { point: 1.5, outcomes:[ {name:"Over", prob:null, odds:1.28}, {name:"Under", prob:null, odds:3.20} ] },
+          { point: 3.5, outcomes:[ {name:"Over", prob:null, odds:2.45}, {name:"Under", prob:null, odds:1.45} ] }
         ]
       });
-
       return [
         mk("demo_1","Arsenal","Liverpool",90),
         mk("demo_2","Inter","Juventus",140),
@@ -635,7 +394,6 @@
       tabOPEN: el("tabOPEN"),
       tabTOTALS: el("tabTOTALS"),
       tabBTTS: el("tabBTTS"),
-      tabSPREADS: el("tabSPREADS"),
       tabEXACT: el("tabEXACT"),
       tabCOMBOS: el("tabCOMBOS"),
 
@@ -657,21 +415,13 @@
     let matchIndex = [];
     let teamMentions = [];
 
-    function esc(s){
-      return String(s ?? "").replace(/[&<>"']/g, m => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[m]));
-    }
-
+    function esc(s){ return String(s ?? "").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function fmtDate(iso){
       try{
         const d = new Date(iso);
         return d.toLocaleString(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-      }catch{
-        return iso;
-      }
+      }catch{ return iso; }
     }
-
     function dateOnlyISO(iso){
       try{
         const d = new Date(iso);
@@ -679,29 +429,21 @@
         const m = String(d.getUTCMonth()+1).padStart(2,"0");
         const da = String(d.getUTCDate()).padStart(2,"0");
         return `${y}-${m}-${da}`;
-      }catch{
-        return String(iso||"").slice(0,10);
-      }
+      }catch{ return String(iso||"").slice(0,10); }
     }
-
     function chosenSport(){
       return ($.sport.value === "custom" && $.sportCustom.value.trim())
         ? $.sportCustom.value.trim()
         : $.sport.value;
     }
-
     function isSoccerSportKey(sk){
-      return /^soccer_/i.test(String(sk || ""));
+      return /^soccer_/i.test(String(sk||""));
     }
-
     function showNotice(txt){
       $.notice.textContent = txt;
       $.notice.classList.remove("hidden");
     }
-
-    function hideNotice(){
-      $.notice.classList.add("hidden");
-    }
+    function hideNotice(){ $.notice.classList.add("hidden"); }
 
     function safeJson(obj){
       const s = JSON.stringify(obj || {});
@@ -710,36 +452,31 @@
 
     async function fetchJsonWithDebug(url, opts){
       const r = await fetch(url, opts);
-      const txt = await r.text().catch(() => "");
+      const txt = await r.text().catch(()=> "");
       let json = null;
       try{ json = txt ? JSON.parse(txt) : null; }catch{ json = null; }
       if (!r.ok){
         const err = new Error(`HTTP ${r.status} ${r.statusText}`);
-        err._debug = { url:String(url), status:r.status, statusText:r.statusText, body:txt?.slice(0,2000) };
+        err._debug = { url: String(url), status:r.status, statusText:r.statusText, body: txt?.slice(0,2000) };
         throw err;
       }
       return json ?? txt;
     }
 
-    function teamLogoUrl(teamName, explicitLogo = null){
-      if (explicitLogo) return explicitLogo;
-      if (TEAM_LOGO_OVERRIDES[teamName]) return TEAM_LOGO_OVERRIDES[teamName];
-
+    function teamLogoUrl(teamName){
       const name = String(teamName || "").trim();
       if (!name) return null;
-
       const q = encodeURIComponent(name);
       return `https://ui-avatars.com/api/?name=${q}&background=fff7ed&color=0f172a&rounded=true&bold=true&size=64`;
     }
-
     function setLogoNode(node, teamName, logoUrl){
       node.classList.remove("fallback");
       node.innerHTML = "";
+      const url = logoUrl || teamLogoUrl(teamName);
 
-      const url = teamLogoUrl(teamName, logoUrl);
       if (!url){
         node.classList.add("fallback");
-        node.textContent = (teamName || "?").slice(0,1).toUpperCase();
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
         return;
       }
 
@@ -751,7 +488,7 @@
       img.onerror = () => {
         node.innerHTML = "";
         node.classList.add("fallback");
-        node.textContent = (teamName || "?").slice(0,1).toUpperCase();
+        node.textContent = (teamName||"?").slice(0,1).toUpperCase();
       };
       node.appendChild(img);
     }
@@ -792,7 +529,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addUserBubble(text){
       $.chatFeed.insertAdjacentHTML("beforeend", `
         <div class="bubbleRow">
@@ -801,7 +537,6 @@
       `);
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
     }
-
     function addThinking(){
       const id = "t_" + Math.random().toString(36).slice(2);
       $.chatFeed.insertAdjacentHTML("beforeend", `
@@ -816,14 +551,13 @@
       $.chatFeed.scrollTop = $.chatFeed.scrollHeight;
       return id;
     }
-
     function removeThinking(id){
       const n = document.getElementById(id);
       if (n) n.remove();
     }
 
     function normalizeTeamForHub(name){
-      const n = String(name || "").trim();
+      const n = String(name||"").trim();
       const l = n.toLowerCase();
 
       if (l.includes("inter") && l.includes("milan")) return "Inter";
@@ -840,12 +574,10 @@
     }
 
     function stripAccents(s){
-      return String(s || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g,"")
+      return String(s||"")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
         .toLowerCase();
     }
-
     function baseTokensForTeam(team){
       const t = stripAccents(team).replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
       const toks = new Set();
@@ -854,19 +586,17 @@
       toks.add(t);
       t.split(" ").filter(Boolean).forEach(w => toks.add(w));
 
-      if (t === "juventus") toks.add("juve");
+      if (t === "juventus"){ toks.add("juve"); }
       if (t === "inter"){ toks.add("inter"); toks.add("inter milan"); toks.add("inter milano"); }
       if (t === "ac milan"){ toks.add("milan"); toks.add("acmilan"); }
-      if (t === "as roma") toks.add("roma");
-
+      if (t === "as roma"){ toks.add("roma"); }
       return toks;
     }
-
     function rebuildIndexes(){
       matchIndex = (Array.isArray(lastData) ? lastData : []).map(ev => ({
         id: ev?.id,
-        home: String(ev?.home_team || "").trim(),
-        away: String(ev?.away_team || "").trim(),
+        home: String(ev?.home_team||"").trim(),
+        away: String(ev?.away_team||"").trim(),
         whenIso: ev?.commence_time
       }));
 
@@ -875,7 +605,6 @@
         if (m.home) teams.set(m.home, baseTokensForTeam(normalizeTeamForHub(m.home)));
         if (m.away) teams.set(m.away, baseTokensForTeam(normalizeTeamForHub(m.away)));
       }
-
       for (const [k,set] of teams.entries()){
         const orig = baseTokensForTeam(k);
         orig.forEach(x => set.add(x));
@@ -908,26 +637,23 @@
     }
 
     function findEventByTeams(teamA, teamB){
-      const a = String(teamA || "").trim();
-      const b = String(teamB || "").trim();
+      const a = String(teamA||"").trim();
+      const b = String(teamB||"").trim();
       if (!a || !b) return null;
-
       return (Array.isArray(lastData) ? lastData : []).find(ev => {
-        const h = String(ev?.home_team || "").trim();
-        const aw = String(ev?.away_team || "").trim();
-        return (h === a && aw === b) || (h === b && aw === a);
+        const h = String(ev?.home_team||"").trim();
+        const aw = String(ev?.away_team||"").trim();
+        return (h===a && aw===b) || (h===b && aw===a);
       }) || null;
     }
 
     function findUpcomingForTeam(team){
-      const t = String(team || "").trim();
+      const t = String(team||"").trim();
       if (!t) return null;
-
       const events = (Array.isArray(lastData) ? lastData : [])
-        .filter(ev => String(ev?.home_team || "").trim() === t || String(ev?.away_team || "").trim() === t)
+        .filter(ev => String(ev?.home_team||"").trim()===t || String(ev?.away_team||"").trim()===t)
         .slice()
-        .sort((x,y) => new Date(x.commence_time).getTime() - new Date(y.commence_time).getTime());
-
+        .sort((x,y)=> new Date(x.commence_time).getTime() - new Date(y.commence_time).getTime());
       return events[0] || null;
     }
 
@@ -961,8 +687,8 @@
       const mentioned = detectMentionedTeams(userText);
       if (!mentioned.length) return null;
 
-      const curHome = String(currentEvent?.home_team || "").trim();
-      const curAway = String(currentEvent?.away_team || "").trim();
+      const curHome = String(currentEvent?.home_team||"").trim();
+      const curAway = String(currentEvent?.away_team||"").trim();
 
       const normalizeMentioned = mentioned.map(normalizeTeamForHub);
       const mentionsCurrent =
@@ -981,14 +707,14 @@
             }
           }
         }
-        return mentionsCurrent ? null : { type:"not_found", teams:mentioned.slice(0,2) };
+        return mentionsCurrent ? null : { type:"not_found", teams: mentioned.slice(0,2) };
       }
 
       if (mentioned.length === 1 && !mentionsCurrent){
         const t = mentioned[0];
         const up = findUpcomingForTeam(t);
         if (up && String(up.id) !== String(currentEvent.id)){
-          return { type:"switch", ev:up };
+          return { type:"switch", ev: up };
         }
         return { type:"not_found", teams:[t] };
       }
@@ -1013,7 +739,6 @@
           if (best == null || price > best) best = price;
         }
       }
-
       return best;
     }
 
@@ -1031,7 +756,6 @@
           const point = Number(o?.point);
           const name = String(o?.name || "");
           const price = Number(o?.price);
-
           if (!Number.isFinite(point) || !name || !Number.isFinite(price) || price <= 0) continue;
 
           if (!map.has(point)){
@@ -1043,7 +767,6 @@
               ]
             });
           }
-
           const row = map.get(point);
           const target = row.outcomes.find(x => x.name.toLowerCase() === name.toLowerCase());
           if (target && (target.odds == null || price > target.odds)){
@@ -1052,88 +775,7 @@
         }
       }
 
-      return Array.from(map.values()).sort((a,b) => a.point - b.point);
-    }
-
-    function collectBttsMarket(bookmakers){
-      const list = Array.isArray(bookmakers) ? bookmakers : [];
-      let yes = null;
-      let no = null;
-
-      for (const bm of list){
-        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
-        const m = markets.find(x => x?.key === "btts");
-        if (!m) continue;
-
-        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
-        for (const o of outcomes){
-          const n = String(o?.name || "").toLowerCase();
-          const price = Number(o?.price);
-          if (!Number.isFinite(price) || price <= 0) continue;
-
-          if (n === "yes" && (yes == null || price > yes)) yes = price;
-          if (n === "no" && (no == null || price > no)) no = price;
-        }
-      }
-
-      if (yes == null && no == null) return null;
-
-      return {
-        outcomes: [
-          { name:"Yes", prob:null, odds:yes },
-          { name:"No", prob:null, odds:no }
-        ]
-      };
-    }
-
-    function collectSpreadsMarkets(bookmakers, homeTeam, awayTeam){
-      const list = Array.isArray(bookmakers) ? bookmakers : [];
-      const map = new Map();
-
-      for (const bm of list){
-        const markets = Array.isArray(bm?.markets) ? bm.markets : [];
-        const m = markets.find(x => x?.key === "spreads");
-        if (!m) continue;
-
-        const outcomes = Array.isArray(m?.outcomes) ? m.outcomes : [];
-        for (const o of outcomes){
-          const point = Number(o?.point);
-          const name = String(o?.name || "");
-          const price = Number(o?.price);
-
-          if (!Number.isFinite(point) || !name || !Number.isFinite(price) || price <= 0) continue;
-
-          if (!map.has(point)){
-            map.set(point, {
-              point,
-              outcomes: [
-                { name:"Home", prob:null, odds:null },
-                { name:"Away", prob:null, odds:null }
-              ]
-            });
-          }
-
-          const row = map.get(point);
-          const normalizedName =
-            name === homeTeam ? "Home" :
-            name === awayTeam ? "Away" :
-            name;
-
-          const target = row.outcomes.find(x => x.name.toLowerCase() === normalizedName.toLowerCase());
-          if (target && (target.odds == null || price > target.odds)){
-            target.odds = price;
-          }
-        }
-      }
-
-      return Array.from(map.values()).sort((a,b) => a.point - b.point);
-    }
-
-    function getFirstBookmakerTeamLogo(rawEv, teamName){
-      const sources = rawEv?.bookmakers || [];
-      const maybe = sources.find(Boolean);
-      if (!maybe) return null;
-      return TEAM_LOGO_OVERRIDES[teamName] || null;
+      return Array.from(map.values()).sort((a,b)=> a.point - b.point);
     }
 
     function normalizeOddsEvent(ev){
@@ -1146,24 +788,18 @@
       const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
 
       const totals = collectTotalsMarkets(bms);
-      const btts = collectBttsMarket(bms);
-      const spreads = collectSpreadsMarkets(bms, home, away);
 
       return {
         id: ev?.id,
         commence_time: ev?.commence_time,
         home_team: home,
         away_team: away,
-        home_logo: TEAM_LOGO_OVERRIDES[home] || getFirstBookmakerTeamLogo(ev, home),
-        away_logo: TEAM_LOGO_OVERRIDES[away] || getFirstBookmakerTeamLogo(ev, away),
         outcomes: [
-          { name:"Home", prob:null, odds:qHome },
-          { name:"Draw", prob:null, odds:qDraw },
-          { name:"Away", prob:null, odds:qAway },
+          { name:"Home", prob: null, odds: qHome },
+          { name:"Draw", prob: null, odds: qDraw },
+          { name:"Away", prob: null, odds: qAway },
         ],
         totals,
-        btts,
-        spreads,
         _raw: ev
       };
     }
@@ -1177,7 +813,7 @@
       url.searchParams.set("regions", regions);
       url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
-      url.searchParams.set("markets", "h2h,totals,btts,spreads");
+      url.searchParams.set("markets", "h2h,totals");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
@@ -1194,13 +830,11 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function hubContextByFixtureKey(fixtureKey){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("fixture_key", String(fixtureKey));
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function hubContextByTeams(home, away, dateStr){
       const url = new URL(FOOTBALL_HUB_BASE + "/context");
       url.searchParams.set("home", home);
@@ -1208,13 +842,13 @@
       url.searchParams.set("date", dateStr);
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
     }
-
     async function getContextBundleForEvent(ev){
       const homeOriginal = ev?.home_team;
       const awayOriginal = ev?.away_team;
 
       const home = normalizeTeamForHub(homeOriginal);
       const away = normalizeTeamForHub(awayOriginal);
+
       const dateStr = dateOnlyISO(ev?.commence_time);
       const key = `${home}__${away}__${dateStr}`;
 
@@ -1246,8 +880,8 @@
         resolve: res,
         context: ctx,
         fixture_key: fixtureKey,
-        _hub_names: { home, away, date:dateStr },
-        _orig_names: { home:homeOriginal, away:awayOriginal }
+        _hub_names: { home, away, date: dateStr },
+        _orig_names: { home: homeOriginal, away: awayOriginal }
       };
 
       contextCache.set(key, bundle);
@@ -1269,6 +903,7 @@
 
       try{
         const data = await fetchEvents();
+
         const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
@@ -1277,7 +912,7 @@
 
         if (mustDemo){
           setDemoMode(true);
-          showNotice(`⚠️ Demo attiva: remaining=${rate.remaining ?? "?"}.`);
+          showNotice(`⚠️ DEMO attiva: remaining=${rate.remaining ?? "?"}.`);
           lastData = buildDemoEvents();
           rebuildIndexes();
           $.status.textContent = "stato: demo";
@@ -1317,55 +952,30 @@
       $.cards.innerHTML = events.map(renderCard).join("");
     }
 
-    function oddPillHtml(v){
-      return typeof v === "number"
-        ? `<span class="oddPill">${esc(v.toFixed(2))}</span>`
-        : `<span class="oddPill muted">—</span>`;
-    }
-
-    function getBestTotalsLine(ev){
-      const totals = Array.isArray(ev?.totals) ? ev.totals : [];
-      return totals[0] || null;
-    }
-
-    function getBttsOdds(ev, name){
-      const rows = ev?.btts?.outcomes || [];
-      return rows.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
-    }
-
-    function getFirstSpread(ev){
-      const rows = Array.isArray(ev?.spreads) ? ev.spreads : [];
-      return rows[0] || null;
-    }
-
     function renderCard(ev){
       const when = fmtDate(ev.commence_time);
 
-      const h = esc(ev.home_team || "");
-      const a = esc(ev.away_team || "");
-      const hInitial = esc((ev.home_team || "H").slice(0,1).toUpperCase());
-      const aInitial = esc((ev.away_team || "A").slice(0,1).toUpperCase());
+      const h = esc(ev.home_team||"");
+      const a = esc(ev.away_team||"");
+      const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
+      const aInitial = esc((ev.away_team||"A").slice(0,1).toUpperCase());
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
+      const totals = Array.isArray(ev.totals) ? ev.totals : [];
+
       const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
       const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
       const qAway = h2h.find(x => /away/i.test(x.name))?.odds ?? null;
 
-      const totalLine = getBestTotalsLine(ev);
-      const totalPoint = totalLine?.point ?? null;
-      const qOver = totalLine?.outcomes?.find(x => /over/i.test(x.name))?.odds ?? null;
-      const qUnder = totalLine?.outcomes?.find(x => /under/i.test(x.name))?.odds ?? null;
+      const t0 = totals[0];
+      const line = t0?.point ?? null;
+      const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
+      const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
 
-      const qBttsYes = getBttsOdds(ev, "Yes");
-      const qBttsNo = getBttsOdds(ev, "No");
-
-      const firstSpread = getFirstSpread(ev);
-      const spreadPoint = firstSpread?.point ?? null;
-      const spreadHome = firstSpread?.outcomes?.find(x => /home/i.test(x.name))?.odds ?? null;
-      const spreadAway = firstSpread?.outcomes?.find(x => /away/i.test(x.name))?.odds ?? null;
+      const pill = (v)=> (typeof v === "number" ? `<span class="chip" style="font-weight:900;">${esc(v.toFixed(2))}</span>` : `<span class="chip" style="opacity:.6;">—</span>`);
 
       return `
-        <article class="matchCard cardShadow">
+        <article class="bg-white rounded-2xl border p-4 md:p-5 cardShadow" style="border-color:rgba(2,6,23,.10);">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3 class="text-lg font-extrabold tracking-tight text-slate-900">
@@ -1376,58 +986,39 @@
             <span class="chip">${isDemoMode ? "demo" : "live"}</span>
           </div>
 
-          <div class="mt-4 rounded-2xl border p-3 flex items-center gap-2 flex-wrap" style="border-color:rgba(2,6,23,.08);">
+          <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
             <div class="tlogo" title="${h}">
-              <img src="${esc(teamLogoUrl(ev.home_team, ev.home_logo) || '')}" alt="${h}" loading="lazy" referrerpolicy="no-referrer"
+              <img src="${esc(teamLogoUrl(ev.home_team) || '')}" alt="${h}" loading="lazy" referrerpolicy="no-referrer"
                    onerror="this.remove(); this.parentElement.textContent='${hInitial}'">
             </div>
             <div class="text-sm font-extrabold text-slate-900">${h}</div>
             <span class="vsPill">VS</span>
             <div class="tlogo" title="${a}">
-              <img src="${esc(teamLogoUrl(ev.away_team, ev.away_logo) || '')}" alt="${a}" loading="lazy" referrerpolicy="no-referrer"
+              <img src="${esc(teamLogoUrl(ev.away_team) || '')}" alt="${a}" loading="lazy" referrerpolicy="no-referrer"
                    onerror="this.remove(); this.parentElement.textContent='${aInitial}'">
             </div>
             <div class="text-sm font-extrabold text-slate-900">${a}</div>
           </div>
 
-          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div class="marketBox">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2</div>
-              <div class="marketRow"><span>${h}</span>${oddPillHtml(qHome)}</div>
-              <div class="marketRow"><span>Pareggio</span>${oddPillHtml(qDraw)}</div>
-              <div class="marketRow"><span>${a}</span>${oddPillHtml(qAway)}</div>
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
+              <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
             </div>
 
-            <div class="marketBox">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Under / Over ${totalPoint != null ? `(linea ${esc(totalPoint)})` : ""}</div>
-              <div class="marketRow"><span>Over</span>${oddPillHtml(qOver)}</div>
-              <div class="marketRow"><span>Under</span>${oddPillHtml(qUnder)}</div>
-            </div>
-          </div>
-
-          <div class="mt-3 miniGrid">
-            <div class="miniStat">
-              <div class="k">Gol / NoGol</div>
-              <div class="v">
-                ${typeof qBttsYes === "number" || typeof qBttsNo === "number"
-                  ? `Gol ${typeof qBttsYes === "number" ? qBttsYes.toFixed(2) : "—"} · NoGol ${typeof qBttsNo === "number" ? qBttsNo.toFixed(2) : "—"}`
-                  : `Mercato non disponibile`}
-              </div>
-            </div>
-
-            <div class="miniStat">
-              <div class="k">Handicap</div>
-              <div class="v">
-                ${spreadPoint != null
-                  ? `Linea ${spreadPoint} · Home ${typeof spreadHome === "number" ? spreadHome.toFixed(2) : "—"} · Away ${typeof spreadAway === "number" ? spreadAway.toFixed(2) : "—"}`
-                  : `Mercato non disponibile`}
-              </div>
+            <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
+              <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
+              <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
             </div>
           </div>
 
           <div class="mt-4 flex items-center justify-end">
             <button class="btn btnPrimary" onclick='openBetty(${safeJson(ev)})'>
-              Leggi il pronostico di Betty 🧙‍♀️
+              Leggi il Pronostico di Betty🧙‍♀️
             </button>
           </div>
         </article>
@@ -1438,9 +1029,8 @@
       $.overlay.classList.add("show");
       $.overlay.setAttribute("aria-hidden","false");
       document.body.style.overflow = "hidden";
-      setTimeout(() => $.chatInput.focus(), 60);
+      setTimeout(()=> $.chatInput.focus(), 60);
     }
-
     function closeModal(){
       $.overlay.classList.remove("show");
       $.overlay.setAttribute("aria-hidden","true");
@@ -1449,7 +1039,7 @@
 
     function setMode(mode){
       currentMode = mode;
-      $.tabBtns.forEach(b => {
+      $.tabBtns.forEach(b=>{
         if (b.classList.contains("hidden")) return;
         b.classList.toggle("active", b.dataset.mode === mode);
       });
@@ -1458,11 +1048,10 @@
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
       $.tabBTTS.classList.toggle("hidden", !soccer);
-      $.tabSPREADS.classList.toggle("hidden", !soccer);
       $.tabEXACT.classList.toggle("hidden", !soccer);
       $.tabCOMBOS.classList.remove("hidden");
 
-      const active = $.tabBtns.find(b => b.classList.contains("active"));
+      const active = $.tabBtns.find(b=>b.classList.contains("active"));
       if (active && active.classList.contains("hidden")){
         setMode("OPEN");
       }
@@ -1470,7 +1059,6 @@
 
     function buildStrongMarketRequest(mode, ev){
       const line = Array.isArray(ev?.totals) && ev.totals.length ? ev.totals[0]?.point : null;
-      const spreadLine = Array.isArray(ev?.spreads) && ev.spreads.length ? ev.spreads[0]?.point : null;
       const hasLine = (typeof line === "number");
 
       if (mode === "TOTALS"){
@@ -1478,25 +1066,15 @@
           ? `Dammi SUBITO una previsione Under/Over sulla linea ${line}. Scegli una sola giocata principale (Over o Under) e motivala con 3 punti (quote + contesto). Poi proponi una giocata alternativa più prudente.`
           : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
       }
-
       if (mode === "BTTS"){
         return `Dammi SUBITO una previsione Gol/NoGol (BTTS): scegli una sola giocata principale (Gol o NoGol) e motivala con 3 punti. Poi un’alternativa prudente.`;
       }
-
-      if (mode === "SPREADS"){
-        return spreadLine != null
-          ? `Dammi SUBITO una previsione sull'handicap/spread con linea ${spreadLine}. Scegli una sola giocata principale e motivala con quote e contesto. Poi proponi un'alternativa prudente.`
-          : `Dammi SUBITO una previsione sul mercato handicap/spread. Se la linea non è disponibile, dichiaralo e suggerisci un’alternativa sul match.`;
-      }
-
       if (mode === "EXACT"){
         return `Dammi SUBITO 2 risultati esatti più probabili (con livello fiducia) e motivali in modo discorsivo.`;
       }
-
       if (mode === "COMBOS"){
         return `Crea una multipla usando più partite del tabellone attuale. Usa SOLO le selezioni che trovi in event.selections e non inventare quote. Restituisci: schedina proposta, breve logica, livello di rischio e una alternativa prudente.`;
       }
-
       return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
     }
 
@@ -1556,7 +1134,6 @@
     function extractBettyText(data){
       if (!data) return "";
       if (typeof data === "string") return data.trim();
-
       const text =
         (data.content ?? data.output_text ?? data.text ?? data.message ?? data.answer ?? data.result ?? "").toString().trim();
       if (text) return text;
@@ -1565,11 +1142,7 @@
         (data?.data?.content ?? data?.data?.message ?? data?.data?.answer ?? "").toString().trim();
       if (text2) return text2;
 
-      try{
-        return JSON.stringify(data).slice(0, 2000);
-      }catch{
-        return "";
-      }
+      try { return JSON.stringify(data).slice(0, 2000); } catch { return ""; }
     }
 
     async function postJson(url, payload){
@@ -1598,6 +1171,7 @@
       }
 
       const sportKey = chosenSport();
+
       const payload = {
         mode: modePayload,
         prompt: buildAntiHallucinationPrompt(userText || "", contextBundlePayload, eventPayload),
@@ -1621,7 +1195,12 @@
 
     function isMultiplaRequest(text){
       const t = String(text || "").toLowerCase();
-      return t.includes("multipla") || t.includes("schedina") || t.includes("combo") || t.includes("multiple");
+      return (
+        t.includes("multipla") ||
+        t.includes("schedina") ||
+        t.includes("combo") ||
+        t.includes("multiple")
+      );
     }
 
     function extractSlipSize(text){
@@ -1653,17 +1232,6 @@
       return row?.outcomes?.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
     }
 
-    function getBttsOdd(ev, name){
-      const btts = ev?.btts?.outcomes || [];
-      return btts.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
-    }
-
-    function getSpreadOdds(ev, point, name){
-      const spreads = Array.isArray(ev?.spreads) ? ev.spreads : [];
-      const row = spreads.find(t => Number(t?.point) === Number(point));
-      return row?.outcomes?.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
-    }
-
     function pickSelectionForMatch(ev){
       const over15 = getTotalOdds(ev, 1.5, "Over");
       if (typeof over15 === "number"){
@@ -1671,21 +1239,9 @@
           match_id: ev.id,
           home_team: ev.home_team,
           away_team: ev.away_team,
-          market:"Totali",
-          pick:"Over 1.5",
-          odds:over15
-        };
-      }
-
-      const bttsYes = getBttsOdd(ev, "Yes");
-      if (typeof bttsYes === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market:"BTTS",
-          pick:"Gol",
-          odds:bttsYes
+          market: "Totali",
+          pick: "Over 1.5",
+          odds: over15
         };
       }
 
@@ -1695,25 +1251,34 @@
           match_id: ev.id,
           home_team: ev.home_team,
           away_team: ev.away_team,
-          market:"Totali",
-          pick:"Under 4.5",
-          odds:under45
+          market: "Totali",
+          pick: "Under 4.5",
+          odds: under45
         };
       }
 
-      const firstSpread = Array.isArray(ev?.spreads) && ev.spreads.length ? ev.spreads[0] : null;
-      if (firstSpread){
-        const hOdd = getSpreadOdds(ev, firstSpread.point, "Home");
-        if (typeof hOdd === "number"){
-          return {
-            match_id: ev.id,
-            home_team: ev.home_team,
-            away_team: ev.away_team,
-            market:"Handicap",
-            pick:`${ev.home_team} ${firstSpread.point}`,
-            odds:hOdd
-          };
-        }
+      const over25 = getTotalOdds(ev, 2.5, "Over");
+      if (typeof over25 === "number"){
+        return {
+          match_id: ev.id,
+          home_team: ev.home_team,
+          away_team: ev.away_team,
+          market: "Totali",
+          pick: "Over 2.5",
+          odds: over25
+        };
+      }
+
+      const under35 = getTotalOdds(ev, 3.5, "Under");
+      if (typeof under35 === "number"){
+        return {
+          match_id: ev.id,
+          home_team: ev.home_team,
+          away_team: ev.away_team,
+          market: "Totali",
+          pick: "Under 3.5",
+          odds: under35
+        };
       }
 
       const homeOdds = getOutcomeOdds(ev, "Home");
@@ -1726,18 +1291,18 @@
             match_id: ev.id,
             home_team: ev.home_team,
             away_team: ev.away_team,
-            market:"1X2",
-            pick:ev.home_team,
-            odds:homeOdds
+            market: "1X2",
+            pick: ev.home_team,
+            odds: homeOdds
           };
         }
         return {
           match_id: ev.id,
           home_team: ev.home_team,
           away_team: ev.away_team,
-          market:"1X2",
-          pick:ev.away_team,
-          odds:awayOdds
+          market: "1X2",
+          pick: ev.away_team,
+          odds: awayOdds
         };
       }
 
@@ -1746,9 +1311,9 @@
           match_id: ev.id,
           home_team: ev.home_team,
           away_team: ev.away_team,
-          market:"1X2",
-          pick:"Pareggio",
-          odds:drawOdds
+          market: "1X2",
+          pick: "Pareggio",
+          odds: drawOdds
         };
       }
 
@@ -1761,12 +1326,15 @@
 
     function buildMultipleSlipFromBoard(requestedCount){
       const count = Math.max(2, Math.min(Number(requestedCount || 3), 8));
+
       let pool = Array.isArray(lastData) ? lastData.slice() : [];
       if (!pool.length) return null;
 
       if (currentEvent){
         const others = pool.filter(x => String(x?.id) !== String(currentEvent?.id));
-        if (others.length >= count) pool = others;
+        if (others.length >= count){
+          pool = others;
+        }
       }
 
       pool = shuffleArray(pool);
@@ -1786,13 +1354,13 @@
       if (selections.length < 2) return null;
 
       return {
-        type:"multiple",
-        requested_count:count,
-        built_count:selections.length,
-        source:"tabellone_attuale",
-        competition:chosenSport(),
+        type: "multiple",
+        requested_count: count,
+        built_count: selections.length,
+        source: "tabellone_attuale",
+        competition: chosenSport(),
         selections,
-        total_odds:Number(calcComboOdds(selections).toFixed(2))
+        total_odds: Number(calcComboOdds(selections).toFixed(2))
       };
     }
 
@@ -1803,7 +1371,7 @@
       if (!slip){
         const msg = "Non ho abbastanza partite con mercati disponibili nel tabellone attuale. Prova a cambiare campionato oppure aggiorna i match.";
         addBettyBubble(msg);
-        chatHistory.push({ role:"assistant", content:msg });
+        chatHistory.push({ role:"assistant", content: msg });
         return;
       }
 
@@ -1812,20 +1380,20 @@
         : `Fammi una multipla da ${slip.built_count} partite usando le selezioni ricevute.`;
 
       addUserBubble(sourceLabel);
-      chatHistory.push({ role:"user", content:prompt });
+      chatHistory.push({ role:"user", content: prompt });
 
       const th = addThinking();
       const ans = await askBetty(prompt, {
-        mode:"COMBOS",
-        event:slip,
-        context:null,
-        resolve:null,
-        bundle:null
+        mode: "COMBOS",
+        event: slip,
+        context: null,
+        resolve: null,
+        bundle: null
       });
       removeThinking(th);
 
       addBettyBubble(ans);
-      chatHistory.push({ role:"assistant", content:ans });
+      chatHistory.push({ role:"assistant", content: ans });
     }
 
     window.openBetty = async function(ev){
@@ -1842,8 +1410,8 @@
 
       $.mhHomeName.textContent = ev.home_team || "Home";
       $.mhAwayName.textContent = ev.away_team || "Away";
-      setLogoNode($.mhHomeLogo, ev.home_team, ev.home_logo || null);
-      setLogoNode($.mhAwayLogo, ev.away_team, ev.away_logo || null);
+      setLogoNode($.mhHomeLogo, ev.home_team, null);
+      setLogoNode($.mhAwayLogo, ev.away_team, null);
 
       setMode("OPEN");
       openModal();
@@ -1864,7 +1432,7 @@
         }
       }catch(err){
         $.chipContext.textContent = "context: NO";
-        addWarn("Errore aggancio contesto. Farò una lettura base senza inventare dati.");
+        addWarn("Errore aggancio contesto. Farò una lettura BASE senza inventare dati.");
       }
 
       const th = addThinking();
@@ -1872,8 +1440,8 @@
       removeThinking(th);
 
       addBettyBubble(opening);
-      chatHistory.push({ role:"assistant", content:opening });
-    };
+      chatHistory.push({ role:"assistant", content: opening });
+    }
 
     $.refresh.addEventListener("click", load);
 
@@ -1883,8 +1451,8 @@
       if (custom) $.sportCustom.focus();
     });
 
-    $.tabBtns.forEach(btn => {
-      btn.addEventListener("click", async () => {
+    $.tabBtns.forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
         if (btn.classList.contains("hidden")) return;
 
         setMode(btn.dataset.mode);
@@ -1902,18 +1470,18 @@
         const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
 
         addUserBubble(btn.textContent);
-        chatHistory.push({ role:"user", content:strong });
+        chatHistory.push({ role:"user", content: strong });
 
         const th = addThinking();
         const ans = await askBetty(strong);
         removeThinking(th);
 
         addBettyBubble(ans);
-        chatHistory.push({ role:"assistant", content:ans });
+        chatHistory.push({ role:"assistant", content: ans });
       });
     });
 
-    $.sendBtn.addEventListener("click", async () => {
+    $.sendBtn.addEventListener("click", async ()=>{
       const t = $.chatInput.value.trim();
       if (!t) return;
       $.chatInput.value = "";
@@ -1924,8 +1492,8 @@
         const msg = suggestSwitchMessage(otherMatch.ev);
         addUserBubble(t);
         addBettyBubbleHtml(msg);
-        chatHistory.push({ role:"user", content:t });
-        chatHistory.push({ role:"assistant", content:`[switch-match] ${otherMatch.ev?.home_team || ""} vs ${otherMatch.ev?.away_team || ""}` });
+        chatHistory.push({ role:"user", content: t });
+        chatHistory.push({ role:"assistant", content: `[switch-match] ${otherMatch.ev?.home_team || ""} vs ${otherMatch.ev?.away_team || ""}` });
         return;
       }
 
@@ -1933,8 +1501,8 @@
         addUserBubble(t);
         const msg = suggestChangeCompetitionMessage();
         addBettyBubble(msg);
-        chatHistory.push({ role:"user", content:t });
-        chatHistory.push({ role:"assistant", content:msg });
+        chatHistory.push({ role:"user", content: t });
+        chatHistory.push({ role:"assistant", content: msg });
         return;
       }
 
@@ -1944,17 +1512,17 @@
       }
 
       addUserBubble(t);
-      chatHistory.push({ role:"user", content:t });
+      chatHistory.push({ role:"user", content: t });
 
       const th = addThinking();
       const ans = await askBetty(t);
       removeThinking(th);
 
       addBettyBubble(ans);
-      chatHistory.push({ role:"assistant", content:ans });
+      chatHistory.push({ role:"assistant", content: ans });
     });
 
-    $.chatInput.addEventListener("keydown", (e) => {
+    $.chatInput.addEventListener("keydown", (e)=>{
       if (e.key === "Enter" && !e.shiftKey){
         e.preventDefault();
         $.sendBtn.click();
@@ -1962,8 +1530,8 @@
     });
 
     $.closeModal.addEventListener("click", closeModal);
-    $.overlay.addEventListener("click", (e) => { if (e.target === $.overlay) closeModal(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
+    $.overlay.addEventListener("click", (e)=>{ if (e.target === $.overlay) closeModal(); });
+    document.addEventListener("keydown", (e)=>{ if (e.key === "Escape" && $.overlay.classList.contains("show")) closeModal(); });
 
     load();
   </script>
