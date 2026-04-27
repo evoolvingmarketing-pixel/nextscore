@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NextScore — Match Center (Light)</title>
+  <title>NextScore — Match Center</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><text y='50' font-size='50'>⚡</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;800;900&display=swap" rel="stylesheet"/>
@@ -212,47 +212,56 @@
     }
 
     .marketBar{
-      display:flex;
-      gap:10px;
-      padding:12px 14px 6px 14px;
-      flex-wrap:wrap;
+      padding:12px 14px;
       border-bottom:1px solid rgba(2,6,23,.08);
       background:#fff;
     }
 
-    .marketBtn{
-      appearance:none;
-      border:none;
-      cursor:pointer;
-      border-radius:999px;
-      padding:12px 18px;
+    .marketSelectWrap{
+      width:100%;
+      display:grid;
+      gap:6px;
+      position:relative;
+    }
+
+    .marketSelectLabel{
+      font-size:12px;
       font-weight:900;
-      font-size:14px;
-      line-height:1;
-      color:#1f2937;
-      background:#ffffff;
+      color:#475569;
+    }
+
+    .marketSelect{
+      width:100%;
+      appearance:none;
+      -webkit-appearance:none;
+      border-radius:16px;
       border:1px solid rgba(2,6,23,.12);
-      box-shadow:0 6px 18px rgba(2,6,23,.06);
-      transition:all .14s ease;
-      white-space:nowrap;
-    }
-
-    .marketBtn:hover{
-      transform:translateY(-1px);
-      border-color:rgba(245,158,11,.35);
-      box-shadow:0 12px 24px rgba(245,158,11,.12);
-      background:#fffaf2;
-    }
-
-    .marketBtn.active{
+      background:linear-gradient(135deg, #fff7ed 0%, #ffffff 70%);
       color:#111827;
-      background:linear-gradient(135deg, #fff7ed 0%, #fde7c2 100%);
-      border-color:rgba(245,158,11,.55);
-      box-shadow:0 12px 26px rgba(245,158,11,.18);
+      padding:13px 46px 13px 14px;
+      font-weight:900;
+      font-size:15px;
+      line-height:1.2;
+      outline:none;
+      box-shadow:0 8px 22px rgba(2,6,23,.06);
+      cursor:pointer;
     }
 
-    .marketBtn.hidden{
-      display:none !important;
+    .marketSelectWrap::after{
+      content:"⌄";
+      position:absolute;
+      right:16px;
+      bottom:12px;
+      font-size:18px;
+      font-weight:900;
+      color:#92400e;
+      pointer-events:none;
+      line-height:1;
+    }
+
+    .marketSelect:focus{
+      border-color:rgba(245,158,11,.55);
+      box-shadow:0 0 0 4px rgba(245,158,11,.14), 0 8px 22px rgba(2,6,23,.06);
     }
 
     .modalFooter{
@@ -287,14 +296,7 @@
     }
 
     @media (max-width:640px){
-      .marketBar{
-        gap:8px;
-      }
-
-      .marketBtn{
-        padding:10px 14px;
-        font-size:13px;
-      }
+      .marketSelect{ font-size:14px; padding:12px 44px 12px 13px; }
     }
   </style>
 </head>
@@ -308,7 +310,7 @@
         </h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
           Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-          <span class="text-slate-500">(con contesto: forma, classifica, indisponibili)</span>.
+          <span class="text-slate-500">(quote, finestra temporale e contesto quando disponibile)</span>.
         </p>
       </div>
 
@@ -320,7 +322,7 @@
 
     <section class="bg-white rounded-2xl border cardShadow" style="border-color:var(--border);">
       <div class="p-4 md:p-5">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div class="md:col-span-2">
             <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
             <select id="sport" class="input">
@@ -352,6 +354,16 @@
             </select>
           </div>
 
+          <div>
+            <label class="block text-sm font-bold text-slate-800 mb-1">Partite</label>
+            <select id="range" class="input">
+              <option value="matchday" selected>Prossima giornata</option>
+              <option value="today">Oggi</option>
+              <option value="upcoming">Prossimi 7 giorni</option>
+              <option value="all">Tutte</option>
+            </select>
+          </div>
+
           <div class="flex items-end gap-2">
             <button id="refreshBtn" class="btn btnPrimary w-full">Aggiorna Match</button>
           </div>
@@ -360,7 +372,8 @@
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <span class="chip" id="chipCount">match: —</span>
           <span class="chip" id="chipMode">modalità: live</span>
-          <span class="chip">stile: light premium</span>
+          <span class="chip" id="chipRange">range: prossima giornata</span>
+          <span class="chip">mercati API: 1X2 / O-U</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
         </div>
@@ -399,11 +412,26 @@
       </div>
 
       <div class="marketBar">
-        <button class="marketBtn active" data-mode="OPEN" id="tabOPEN" type="button">Analisi</button>
-        <button class="marketBtn" data-mode="TOTALS" id="tabTOTALS" type="button">Under/Over</button>
-        <button class="marketBtn" data-mode="BTTS" id="tabBTTS" type="button">Gol/NoGol</button>
-        <button class="marketBtn" data-mode="EXACT" id="tabEXACT" type="button">Risultato Esatto</button>
-        <button class="marketBtn" data-mode="COMBOS" id="tabCOMBOS" type="button">Combo/Multiple</button>
+        <div class="marketSelectWrap">
+          <label for="marketSelect" class="marketSelectLabel">Mercato da analizzare</label>
+          <select id="marketSelect" class="marketSelect">
+            <option value="OPEN">Analisi / Esito finale</option>
+            <option value="TOTALS">Under/Over</option>
+            <option value="BTTS" data-soccer-only="true">Gol/NoGol</option>
+            <option value="DOUBLE_CHANCE" data-soccer-only="true">Doppia Chance</option>
+            <option value="DNB" data-soccer-only="true">Draw No Bet</option>
+            <option value="HANDICAP" data-soccer-only="true">Handicap</option>
+            <option value="MULTIGOL" data-soccer-only="true">Multigol</option>
+            <option value="BTTS_OVER" data-soccer-only="true">Gol + Over</option>
+            <option value="HALF_TIME" data-soccer-only="true">Primo Tempo</option>
+            <option value="SECOND_HALF" data-soccer-only="true">Secondo Tempo</option>
+            <option value="CORNERS" data-soccer-only="true">Corner</option>
+            <option value="CARDS" data-soccer-only="true">Cartellini</option>
+            <option value="SCORER" data-soccer-only="true">Marcatori</option>
+            <option value="EXACT" data-soccer-only="true">Risultato Esatto</option>
+            <option value="COMBOS">Combo/Multiple</option>
+          </select>
+        </div>
       </div>
 
       <div class="modalBody">
@@ -437,10 +465,16 @@
           { name:"Away", prob: null, odds: 4.20 },
         ],
         totals: [
-          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] },
           { point: 1.5, outcomes:[ {name:"Over", prob:null, odds:1.28}, {name:"Under", prob:null, odds:3.20} ] },
+          { point: 2.5, outcomes:[ {name:"Over", prob:null, odds:1.75}, {name:"Under", prob:null, odds:1.93} ] },
           { point: 3.5, outcomes:[ {name:"Over", prob:null, odds:2.45}, {name:"Under", prob:null, odds:1.45} ] }
-        ]
+        ],
+        btts: {
+          outcomes: [
+            { name:"Yes", prob:null, odds:1.82 },
+            { name:"No", prob:null, odds:1.90 }
+          ]
+        }
       });
       return [
         mk("demo_1","Arsenal","Liverpool",90),
@@ -458,11 +492,13 @@
       cards: el("cards"),
       chipCount: el("chipCount"),
       chipMode: el("chipMode"),
+      chipRange: el("chipRange"),
       chipContext: el("chipContext"),
 
       sport: el("sport"),
       sportCustom: el("sportCustom"),
       regions: el("regions"),
+      range: el("range"),
       refresh: el("refreshBtn"),
 
       overlay: el("modalOverlay"),
@@ -473,12 +509,8 @@
       chatInput: el("chatInput"),
       sendBtn: el("sendBtn"),
 
-      tabBtns: Array.from(document.querySelectorAll(".marketBtn")),
-      tabOPEN: el("tabOPEN"),
-      tabTOTALS: el("tabTOTALS"),
-      tabBTTS: el("tabBTTS"),
-      tabEXACT: el("tabEXACT"),
-      tabCOMBOS: el("tabCOMBOS"),
+      marketSelect: el("marketSelect"),
+      marketOptions: Array.from(document.querySelectorAll("#marketSelect option")),
 
       mhHomeLogo: el("mhHomeLogo"),
       mhAwayLogo: el("mhAwayLogo"),
@@ -491,10 +523,8 @@
     let currentMode = "OPEN";
     let chatHistory = [];
     let isDemoMode = false;
-
     let currentContextBundle = null;
     const contextCache = new Map();
-
     let matchIndex = [];
     let teamMentions = [];
 
@@ -503,7 +533,7 @@
     function fmtDate(iso){
       try{
         const d = new Date(iso);
-        return d.toLocaleString(undefined,{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+        return d.toLocaleString("it-IT",{weekday:"short",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
       }catch{ return iso; }
     }
 
@@ -521,6 +551,39 @@
       return ($.sport.value === "custom" && $.sportCustom.value.trim())
         ? $.sportCustom.value.trim()
         : $.sport.value;
+    }
+
+    function chosenRange(){
+      return $.range?.value || "matchday";
+    }
+
+    function selectedMarketFromMode(mode){
+      const m = String(mode || currentMode || "OPEN").toUpperCase();
+      const map = {
+        OPEN: "h2h",
+        TOTALS: "totals",
+        BTTS: "btts",
+        DOUBLE_CHANCE: "double_chance",
+        DNB: "draw_no_bet",
+        HANDICAP: "handicap",
+        MULTIGOL: "multigol",
+        BTTS_OVER: "btts_over",
+        HALF_TIME: "half_time",
+        SECOND_HALF: "second_half",
+        CORNERS: "corners",
+        CARDS: "cards",
+        SCORER: "scorer",
+        EXACT: "correct_score",
+        COMBOS: "multiple"
+      };
+      return map[m] || "h2h";
+    }
+
+    function rangeLabel(v){
+      if (v === "today") return "oggi";
+      if (v === "upcoming") return "prossimi 7 giorni";
+      if (v === "all") return "tutte";
+      return "prossima giornata";
     }
 
     function isSoccerSportKey(sk){
@@ -654,17 +717,13 @@
     function normalizeTeamForHub(name){
       const n = String(name||"").trim();
       const l = n.toLowerCase();
-
       if (l.includes("inter") && l.includes("milan")) return "Inter";
       if (l === "inter milano") return "Inter";
       if (l === "inter") return "Inter";
-
       if (l === "milan") return "AC Milan";
       if (l === "ac milan" || l === "a.c. milan") return "AC Milan";
       if (l.includes("milan") && !l.includes("inter")) return "AC Milan";
-
       if (l === "roma" || l === "as roma") return "AS Roma";
-
       return n;
     }
 
@@ -678,10 +737,8 @@
       const t = stripAccents(team).replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
       const toks = new Set();
       if (!t) return toks;
-
       toks.add(t);
       t.split(" ").filter(Boolean).forEach(w => toks.add(w));
-
       if (t === "juventus"){ toks.add("juve"); }
       if (t === "inter"){ toks.add("inter"); toks.add("inter milan"); toks.add("inter milano"); }
       if (t === "ac milan"){ toks.add("milan"); toks.add("acmilan"); }
@@ -780,13 +837,11 @@
 
     function detectOtherMatchRequest(userText){
       if (!currentEvent) return null;
-
       const mentioned = detectMentionedTeams(userText);
       if (!mentioned.length) return null;
 
       const curHome = String(currentEvent?.home_team||"").trim();
       const curAway = String(currentEvent?.away_team||"").trim();
-
       const normalizeMentioned = mentioned.map(normalizeTeamForHub);
       const mentionsCurrent =
         mentioned.includes(curHome) || mentioned.includes(curAway) ||
@@ -875,7 +930,23 @@
       return Array.from(map.values()).sort((a,b)=> a.point - b.point);
     }
 
+    function collectBttsMarket(bookmakers){
+      const yes = bestOddsFromBookmakers(bookmakers, "btts", "Yes");
+      const no = bestOddsFromBookmakers(bookmakers, "btts", "No");
+
+      if (typeof yes !== "number" && typeof no !== "number") return null;
+
+      return {
+        outcomes: [
+          { name:"Yes", prob:null, odds: yes },
+          { name:"No", prob:null, odds: no }
+        ]
+      };
+    }
+
     function normalizeOddsEvent(ev){
+      if (ev && !ev.bookmakers && (ev.outcomes || ev.totals)) return ev;
+
       const home = ev?.home_team;
       const away = ev?.away_team;
       const bms = ev?.bookmakers;
@@ -883,8 +954,8 @@
       const qHome = bestOddsFromBookmakers(bms, "h2h", home);
       const qAway = bestOddsFromBookmakers(bms, "h2h", away);
       const qDraw = bestOddsFromBookmakers(bms, "h2h", "Draw");
-
       const totals = collectTotalsMarkets(bms);
+      const btts = collectBttsMarket(bms);
 
       return {
         id: ev?.id,
@@ -897,6 +968,7 @@
           { name:"Away", prob: null, odds: qAway },
         ],
         totals,
+        btts,
         _raw: ev
       };
     }
@@ -904,12 +976,13 @@
     async function fetchEvents(){
       const sport = chosenSport();
       const regions = $.regions.value;
+      const range = chosenRange();
 
       const url = new URL(ODDS_BASE + "/get-odds");
       url.searchParams.set("sport", sport);
       url.searchParams.set("regions", regions);
-      url.searchParams.set("live", "false");
       url.searchParams.set("count", String(MAX_COUNT));
+      url.searchParams.set("range", range);
       url.searchParams.set("markets", "h2h,totals");
 
       return fetchJsonWithDebug(url, { headers:{ "Accept":"application/json" }});
@@ -945,10 +1018,8 @@
     async function getContextBundleForEvent(ev){
       const homeOriginal = ev?.home_team;
       const awayOriginal = ev?.away_team;
-
       const home = normalizeTeamForHub(homeOriginal);
       const away = normalizeTeamForHub(awayOriginal);
-
       const dateStr = dateOnlyISO(ev?.commence_time);
       const key = `${home}__${away}__${dateStr}`;
 
@@ -960,7 +1031,7 @@
         return bundle;
       }
 
-      const res = await hubResolve(home, away, dateStr);
+      const res = await hubResolve(home, away, dateStr).catch((e)=>({ ok:false, error:String(e?.message || e) }));
       const fixtureKey = res?.fixture_key || null;
 
       if (!res?.ok || !fixtureKey){
@@ -969,9 +1040,9 @@
         return bundle;
       }
 
-      let ctx = await hubContextByFixtureKey(fixtureKey);
+      let ctx = await hubContextByFixtureKey(fixtureKey).catch((e)=>({ ok:false, error:String(e?.message || e) }));
       if (!ctx?.ok){
-        ctx = await hubContextByTeams(home, away, dateStr);
+        ctx = await hubContextByTeams(home, away, dateStr).catch((e)=>({ ok:false, error:String(e?.message || e) }));
       }
 
       const bundle = {
@@ -999,11 +1070,11 @@
     async function load(){
       $.status.textContent = "stato: carico…";
       $.chipContext.textContent = "context: —";
+      $.chipRange.textContent = `range: ${rangeLabel(chosenRange())}`;
       hideNotice();
 
       try{
         const data = await fetchEvents();
-
         const rate = data?.rate || {};
         $.rate.textContent = `rate: remaining=${rate.remaining ?? "?"} used=${rate.used ?? "?"}`;
 
@@ -1024,13 +1095,14 @@
         setDemoMode(false);
 
         const rawEvents = Array.isArray(data?.data) ? data.data : [];
-        lastData = rawEvents.map(normalizeOddsEvent);
-        rebuildIndexes();
+        lastData = rawEvents.map(normalizeOddsEvent)
+          .sort((a,b)=> new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
 
+        rebuildIndexes();
         $.chipCount.textContent = `match: ${lastData.length || 0}`;
 
         if (!lastData.length){
-          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport o riprova.");
+          $.cards.innerHTML = emptyState("Nessun match trovato. Cambia sport, range o riprova.");
           $.status.textContent = "stato: ok (0)";
           return;
         }
@@ -1054,7 +1126,6 @@
 
     function renderCard(ev){
       const when = fmtDate(ev.commence_time);
-
       const h = esc(ev.home_team||"");
       const a = esc(ev.away_team||"");
       const hInitial = esc((ev.home_team||"H").slice(0,1).toUpperCase());
@@ -1062,12 +1133,11 @@
 
       const h2h = Array.isArray(ev.outcomes) ? ev.outcomes : [];
       const totals = Array.isArray(ev.totals) ? ev.totals : [];
-
       const qHome = h2h.find(x => /home/i.test(x.name))?.odds ?? null;
       const qDraw = h2h.find(x => /draw/i.test(x.name))?.odds ?? null;
       const qAway = h2h.find(x => /away/i.test(x.name))?.odds ?? null;
 
-      const t0 = totals[0];
+      const t0 = totals.find(x => Number(x?.point) === 2.5) || totals[0];
       const line = t0?.point ?? null;
       const qOver = t0?.outcomes?.find(x=>/over/i.test(x.name))?.odds ?? null;
       const qUnder = t0?.outcomes?.find(x=>/under/i.test(x.name))?.odds ?? null;
@@ -1083,7 +1153,7 @@
               </h3>
               <div class="text-xs text-slate-500 mt-1">${esc(when)}</div>
             </div>
-            <span class="chip">${isDemoMode ? "demo" : "live"}</span>
+            <span class="chip">${isDemoMode ? "demo" : rangeLabel(chosenRange())}</span>
           </div>
 
           <div class="mt-3 rounded-2xl border p-3 flex items-center gap-2" style="border-color:rgba(2,6,23,.08);">
@@ -1102,7 +1172,7 @@
 
           <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="rounded-2xl border p-3" style="border-color:rgba(2,6,23,.08);">
-              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2 (migliori)</div>
+              <div class="text-xs font-extrabold text-slate-900 mb-2">Quote 1X2</div>
               <div class="flex items-center justify-between text-sm"><span>${h}</span>${pill(qHome)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Pareggio</span>${pill(qDraw)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>${a}</span>${pill(qAway)}</div>
@@ -1112,7 +1182,7 @@
               <div class="text-xs font-extrabold text-slate-900 mb-2">Under/Over ${line ? `(linea ${esc(line)})` : ""}</div>
               <div class="flex items-center justify-between text-sm"><span>Over</span>${pill(qOver)}</div>
               <div class="flex items-center justify-between text-sm mt-2"><span>Under</span>${pill(qUnder)}</div>
-              <div class="text-[12px] text-slate-500 mt-2">Quote “best” tra bookmaker.</div>
+              <div class="text-[12px] text-slate-500 mt-2">Quote best.</div>
             </div>
           </div>
 
@@ -1139,85 +1209,160 @@
     }
 
     function setMode(mode){
-      currentMode = mode;
-      $.tabBtns.forEach(b=>{
-        if (b.classList.contains("hidden")) return;
-        b.classList.toggle("active", b.dataset.mode === mode);
-      });
+      currentMode = mode || "OPEN";
+      if ($.marketSelect && $.marketSelect.value !== currentMode){
+        $.marketSelect.value = currentMode;
+      }
     }
 
     function setTabsForSport(sportKey){
       const soccer = isSoccerSportKey(sportKey);
-      $.tabBTTS.classList.toggle("hidden", !soccer);
-      $.tabEXACT.classList.toggle("hidden", !soccer);
-      $.tabCOMBOS.classList.remove("hidden");
 
-      const active = $.tabBtns.find(b=>b.classList.contains("active"));
-      if (active && active.classList.contains("hidden")){
+      $.marketOptions.forEach((opt) => {
+        if (opt.dataset.soccerOnly === "true") {
+          opt.disabled = !soccer;
+          opt.hidden = !soccer;
+        }
+      });
+
+      if ($.marketSelect && $.marketSelect.selectedOptions[0]?.disabled) {
         setMode("OPEN");
       }
     }
 
-    function buildStrongMarketRequest(mode, ev){
-      const line = Array.isArray(ev?.totals) && ev.totals.length ? ev.totals[0]?.point : null;
-      const hasLine = (typeof line === "number");
-
-      if (mode === "TOTALS"){
-        return hasLine
-          ? `Dammi SUBITO una previsione Under/Over sulla linea ${line}. Scegli una sola giocata principale (Over o Under) e motivala con 3 punti (quote + contesto). Poi proponi una giocata alternativa più prudente.`
-          : `Dammi SUBITO una previsione Under/Over. Se manca la linea, assumi 2.5 come default e dichiaralo chiaramente. Scegli una giocata principale e motivala.`;
-      }
-      if (mode === "BTTS"){
-        return `Dammi una previsione LOGICA Gol/NoGol basata sul contesto del match, sul profilo offensivo/difensivo delle squadre e sui segnali indiretti delle quote disponibili. Non inventare quote BTTS se non sono presenti. Restituisci: (1) previsione principale tra Gol o NoGol (2) spiegazione del perché (3) livello di fiducia.`;
-      }
-      if (mode === "EXACT"){
-        return `Dammi 2 risultati esatti PIÙ PLAUSIBILI come lettura logica della partita, usando solo contesto reale e segnali indiretti da 1X2 e Under/Over quando utili. Non inventare quote del risultato esatto. Restituisci: (1) risultato esatto più plausibile (2) alternativa credibile (3) spiegazione sintetica (4) livello di fiducia.`;
-      }
-      if (mode === "COMBOS"){
-        return `Crea una multipla usando più partite del tabellone attuale. Usa SOLO le selezioni che trovi in event.selections e non inventare quote. Restituisci: schedina proposta, breve logica, livello di rischio e una alternativa prudente.`;
-      }
-      return `Dammi SUBITO una previsione principale (1X2 o doppia chance) e motivala con 3 punti basati su quote e contesto. Poi proponi una alternativa prudente.`;
+    function marketLabelFromMode(mode){
+      const opt = $.marketOptions.find(o => o.value === mode);
+      return opt ? opt.textContent.trim() : "Analisi";
     }
 
-    function buildAntiHallucinationPrompt(userText, bundle, eventRef){
+    async function triggerMarketAnalysis(mode, sourceLabel){
+      setMode(mode);
+
+      if (!currentEvent){
+        addBettyBubble("Seleziona un match 😊");
+        return;
+      }
+
+      if (mode === "COMBOS"){
+        await handleComboRequest(`Fammi una multipla da 3 partite usando il tabellone attuale.`, sourceLabel || "Combo/Multiple");
+        return;
+      }
+
+      const strong = buildStrongMarketRequest(mode, currentEvent);
+      addUserBubble(sourceLabel || marketLabelFromMode(mode));
+      chatHistory.push({ role:"user", content: strong });
+
+      const th = addThinking();
+      const ans = await askBetty(strong, { mode });
+      removeThinking(th);
+
+      addBettyBubble(ans);
+      chatHistory.push({ role:"assistant", content: ans });
+    }
+
+    function buildStrongMarketRequest(mode, ev){
+      const line = Array.isArray(ev?.totals) && ev.totals.length
+        ? ((ev.totals.find(x=>Number(x?.point)===2.5) || ev.totals[0])?.point)
+        : null;
+      const hasLine = (typeof line === "number");
+      const m = String(mode || "OPEN").toUpperCase();
+
+      const common = "Non inventare quote. Non parlare di API, quote mancanti o dati non disponibili. Se non ci sono quote specifiche, fai una lettura predittiva naturale usando scenario partita, 1X2, Under/Over e prudenza.";
+
+      if (m === "TOTALS"){
+        return hasLine
+          ? `Analizza solo il mercato Under/Over sulla linea ${line}. Scegli una sola giocata principale tra Over e Under. ${common}`
+          : `Analizza il mercato Under/Over con lettura predittiva prudente. ${common}`;
+      }
+      if (m === "BTTS"){
+        return `Analizza solo il mercato Gol/NoGol. Devi scegliere tra Gol e NoGol, spiegare perché, dare alternativa e livello di fiducia. ${common}`;
+      }
+      if (m === "DOUBLE_CHANCE"){
+        return `Analizza solo il mercato Doppia Chance. Scegli tra 1X, X2 o 12, spiegando la scelta più prudente. ${common}`;
+      }
+      if (m === "DNB"){
+        return `Analizza solo il mercato Draw No Bet / Rimborso in caso di pareggio. Scegli la squadra più sensata su cui proteggersi dal pareggio. ${common}`;
+      }
+      if (m === "HANDICAP"){
+        return `Analizza solo il mercato Handicap. Proponi una lettura prudente tra handicap positivo o negativo, evitando selezioni troppo aggressive. ${common}`;
+      }
+      if (m === "MULTIGOL"){
+        return `Analizza solo il mercato Multigol. Proponi il range goal più sensato, ad esempio 1-3, 2-4 o 1-4, motivando la scelta. ${common}`;
+      }
+      if (m === "BTTS_OVER"){
+        return `Analizza solo una combo Gol/NoGol + Under/Over. Scegli la combinazione più logica, ad esempio Gol + Over 2.5, NoGol + Under 3.5 o simili. ${common}`;
+      }
+      if (m === "HALF_TIME"){
+        return `Analizza solo il mercato Primo Tempo. Proponi scenario più probabile per i primi 45 minuti: equilibrio, vantaggio casa/trasferta o pochi goal. ${common}`;
+      }
+      if (m === "SECOND_HALF"){
+        return `Analizza solo il mercato Secondo Tempo. Valuta se la partita può aprirsi dopo l'intervallo e proponi una giocata logica. ${common}`;
+      }
+      if (m === "CORNERS"){
+        return `Analizza solo il mercato Corner. Fai una previsione predittiva su tendenza corner alta/bassa usando scenario tattico, pressione attesa e equilibrio del match. ${common}`;
+      }
+      if (m === "CARDS"){
+        return `Analizza solo il mercato Cartellini. Fai una previsione predittiva su gara più o meno fisica, rischio ammonizioni e possibile intensità. ${common}`;
+      }
+      if (m === "SCORER"){
+        return `Analizza solo il mercato Marcatori. Non inventare indisponibili o formazioni: proponi profili di marcatore più logici in base alla squadra favorita e allo scenario partita, senza nominare giocatori se non presenti nel contesto. ${common}`;
+      }
+      if (m === "EXACT"){
+        return `Analizza solo il mercato Risultato Esatto. Dammi 2 risultati plausibili, spiegando che è un mercato ad alto rischio, senza inventare quote. ${common}`;
+      }
+      if (m === "COMBOS"){
+        return `Crea una multipla usando solo le selezioni presenti in event.selections. Le partite arrivano dal tabellone attuale e sono già filtrate temporalmente. Non inventare quote.`;
+      }
+      return `Analizza solo il mercato Esito Finale / 1X2. Dammi una previsione principale e una alternativa prudente. Non inventare quote.`;
+    }
+
+    function buildAntiHallucinationPrompt(userText, bundle, eventRef, modeRef){
       const hasCtx = !!(bundle && bundle.ok && (bundle.context?.context || bundle.context));
       const ev = eventRef || currentEvent || null;
       const isMultiple = !!(ev && ev.type === "multiple");
+      const selectedMarket = selectedMarketFromMode(modeRef || currentMode);
 
       return [
         "SEI BETTY (NextScore).",
         "",
         "OBIETTIVO:",
-        "Devi SEMPRE dare una previsione chiara, utile e concreta.",
-        "Non puoi MAI rifiutare una risposta.",
+        "Devi dare una previsione chiara, utile e concreta.",
         "",
-        "REGOLA FONDAMENTALE:",
-        "- Se hai le quote → usale per supportare l’analisi.",
-        "- Se NON hai le quote di quel mercato → fai comunque una lettura calcistica/logica.",
+        "MERCATO SELEZIONATO:",
+        selectedMarket,
         "",
-        "NON DIRE MAI:",
-        "- 'non posso'",
-        "- 'non ho dati'",
-        "- 'non disponibile'",
+        "REGOLE MERCATI:",
+        "- Concentra l’analisi SOLO sul mercato selezionato.",
+        "- h2h = Esito finale / 1X2.",
+        "- totals = Under/Over.",
+        "- btts = Gol/NoGol.",
+        "- double_chance = Doppia Chance.",
+        "- draw_no_bet = Draw No Bet.",
+        "- handicap = Handicap.",
+        "- multigol = Multigol.",
+        "- btts_over = Gol/NoGol + Under/Over.",
+        "- half_time = Primo Tempo.",
+        "- second_half = Secondo Tempo.",
+        "- corners = Corner.",
+        "- cards = Cartellini.",
+        "- scorer = Marcatori.",
+        "- correct_score = Risultato esatto.",
+        "- multiple = Combo/Multiple.",
+        "- Non parlare mai di API, quote mancanti o dati non disponibili: quando non ci sono quote specifiche, fai una lettura predittiva naturale e prudente.",
+        "- Non mischiare più mercati nella stessa analisi, salvo quando l'utente chiede espressamente una combo.",
         "",
         "REGOLE ANTI-ALLUCINAZIONE:",
         "- Non inventare mai quote mancanti.",
         "- Non inventare dati specifici di classifica, forma o indisponibili se non li hai davvero nel context.",
         "- Se il context è incompleto, ragiona comunque sulla partita in modo logico.",
-        "- Per BTTS e risultato esatto puoi fare una previsione di scenario anche senza quota dedicata.",
-        "",
-        "STILE:",
-        "- Diretto",
-        "- Sicuro",
-        "- Naturale",
-        "- Da analista che sa di calcio",
         "",
         isMultiple
           ? [
               "MODALITÀ MULTIPLA:",
-              "- Analizza SOLO le selezioni ricevute",
-              "- Non inventare quote",
-              "- Valuta rischio e coerenza della schedina"
+              "- Analizza SOLO le selezioni ricevute in event.selections.",
+              "- Non inventare quote.",
+              "- Valuta rischio e coerenza della schedina.",
+              "- Non aggiungere partite non presenti nelle selezioni."
             ].join("\n")
           : [
               "MATCH:",
@@ -1231,7 +1376,7 @@
         "- Livello di fiducia (basso / medio / alto)",
         "",
         hasCtx
-          ? "Hai contesto (classifica, forma, ecc): usalo."
+          ? "Hai contesto: usalo senza inventare altro."
           : "Non hai contesto completo: NON inventare dati specifici, ma ragiona comunque.",
         "",
         "RICHIESTA UTENTE:",
@@ -1261,6 +1406,18 @@
       });
     }
 
+    function getAvailableEventsForBetty(){
+      return (Array.isArray(lastData) ? lastData : []).map(ev => ({
+        id: ev.id,
+        commence_time: ev.commence_time,
+        home_team: ev.home_team,
+        away_team: ev.away_team,
+        outcomes: ev.outcomes,
+        totals: ev.totals,
+        btts: ev.btts
+      }));
+    }
+
     async function askBetty(userText, opts = {}){
       const eventPayload = opts.event || currentEvent;
       const modePayload = opts.mode || currentMode;
@@ -1279,11 +1436,16 @@
       }
 
       const sportKey = chosenSport();
+      const range = chosenRange();
+      const selectedMarket = selectedMarketFromMode(modePayload);
 
       const payload = {
         mode: modePayload,
-        prompt: buildAntiHallucinationPrompt(userText || "", contextBundlePayload, eventPayload),
+        selectedMarket,
+        range,
+        prompt: buildAntiHallucinationPrompt(userText || "", contextBundlePayload, eventPayload, modePayload),
         event: eventPayload,
+        availableEvents: getAvailableEventsForBetty(),
         context: contextPayload,
         resolve: resolvePayload,
         history: opts.history || chatHistory.slice(-10),
@@ -1340,11 +1502,31 @@
       return row?.outcomes?.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
     }
 
+    function getBttsOdds(ev, name){
+      const outs = Array.isArray(ev?.btts?.outcomes) ? ev.btts.outcomes : [];
+      return outs.find(x => String(x?.name || "").toLowerCase() === String(name).toLowerCase())?.odds ?? null;
+    }
+
+    function getEventsWithin72Hours(events){
+      const sorted = (events || [])
+        .filter(ev => ev?.commence_time)
+        .slice()
+        .sort((a,b)=> new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
+
+      if (!sorted.length) return [];
+
+      const firstTime = new Date(sorted[0].commence_time).getTime();
+      const limit = firstTime + (72 * 60 * 60 * 1000);
+
+      return sorted.filter(ev => new Date(ev.commence_time).getTime() <= limit);
+    }
+
     function pickSelectionForMatch(ev){
       const over15 = getTotalOdds(ev, 1.5, "Over");
       if (typeof over15 === "number"){
         return {
           match_id: ev.id,
+          commence_time: ev.commence_time,
           home_team: ev.home_team,
           away_team: ev.away_team,
           market: "Totali",
@@ -1357,6 +1539,7 @@
       if (typeof under45 === "number"){
         return {
           match_id: ev.id,
+          commence_time: ev.commence_time,
           home_team: ev.home_team,
           away_team: ev.away_team,
           market: "Totali",
@@ -1365,38 +1548,14 @@
         };
       }
 
-      const over25 = getTotalOdds(ev, 2.5, "Over");
-      if (typeof over25 === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market: "Totali",
-          pick: "Over 2.5",
-          odds: over25
-        };
-      }
-
-      const under35 = getTotalOdds(ev, 3.5, "Under");
-      if (typeof under35 === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market: "Totali",
-          pick: "Under 3.5",
-          odds: under35
-        };
-      }
-
       const homeOdds = getOutcomeOdds(ev, "Home");
       const awayOdds = getOutcomeOdds(ev, "Away");
-      const drawOdds = getOutcomeOdds(ev, "Draw");
 
       if (typeof homeOdds === "number" && typeof awayOdds === "number"){
         if (homeOdds <= awayOdds){
           return {
             match_id: ev.id,
+            commence_time: ev.commence_time,
             home_team: ev.home_team,
             away_team: ev.away_team,
             market: "1X2",
@@ -1406,22 +1565,12 @@
         }
         return {
           match_id: ev.id,
+          commence_time: ev.commence_time,
           home_team: ev.home_team,
           away_team: ev.away_team,
           market: "1X2",
           pick: ev.away_team,
           odds: awayOdds
-        };
-      }
-
-      if (typeof drawOdds === "number"){
-        return {
-          match_id: ev.id,
-          home_team: ev.home_team,
-          away_team: ev.away_team,
-          market: "1X2",
-          pick: "Pareggio",
-          odds: drawOdds
         };
       }
 
@@ -1437,6 +1586,8 @@
 
       let pool = Array.isArray(lastData) ? lastData.slice() : [];
       if (!pool.length) return null;
+
+      pool = getEventsWithin72Hours(pool);
 
       if (currentEvent){
         const others = pool.filter(x => String(x?.id) !== String(currentEvent?.id));
@@ -1466,6 +1617,7 @@
         requested_count: count,
         built_count: selections.length,
         source: "tabellone_attuale",
+        range: chosenRange(),
         competition: chosenSport(),
         selections,
         total_odds: Number(calcComboOdds(selections).toFixed(2))
@@ -1477,7 +1629,7 @@
       const slip = buildMultipleSlipFromBoard(count);
 
       if (!slip){
-        const msg = "Non ho abbastanza partite con mercati disponibili nel tabellone attuale. Prova a cambiare campionato oppure aggiorna i match.";
+        const msg = "Non ho abbastanza partite con mercati disponibili nel tabellone attuale. Prova ad aumentare il range a “Prossimi 7 giorni” oppure cambia campionato.";
         addBettyBubble(msg);
         chatHistory.push({ role:"assistant", content: msg });
         return;
@@ -1513,7 +1665,7 @@
       setTabsForSport(sportKey);
 
       $.chatTitle.textContent = `${ev.home_team} vs ${ev.away_team}`;
-      $.chatSub.textContent = fmtDate(ev.commence_time);
+      $.chatSub.textContent = `${fmtDate(ev.commence_time)} · ${rangeLabel(chosenRange())}`;
       $.chatFeed.innerHTML = "";
 
       $.mhHomeName.textContent = ev.home_team || "Home";
@@ -1544,49 +1696,40 @@
       }
 
       const th = addThinking();
-      const opening = await askBetty("Dammi SUBITO una analisi completa e una previsione principale + alternativa prudente.");
+      const opening = await askBetty("Dammi subito una analisi del mercato Esito Finale / 1X2 con previsione principale e alternativa prudente.", { mode:"OPEN" });
       removeThinking(th);
 
       addBettyBubble(opening);
       chatHistory.push({ role:"assistant", content: opening });
     }
 
+
+    window.openBettyMarket = async function(ev, mode){
+      await window.openBetty(ev);
+      const opt = $.marketOptions.find(o => o.value === mode);
+      if (opt && !opt.disabled && !opt.hidden) {
+        await triggerMarketAnalysis(mode, marketLabelFromMode(mode));
+      }
+    }
+
     $.refresh.addEventListener("click", load);
+    $.range.addEventListener("change", load);
+    $.regions.addEventListener("change", load);
 
     $.sport.addEventListener("change", () => {
       const custom = $.sport.value === "custom";
       $.sportCustom.classList.toggle("hidden", !custom);
       if (custom) $.sportCustom.focus();
+      if (!custom) load();
     });
 
-    $.tabBtns.forEach(btn=>{
-      btn.addEventListener("click", async ()=>{
-        if (btn.classList.contains("hidden")) return;
+    $.sportCustom.addEventListener("keydown", (e)=>{
+      if (e.key === "Enter") load();
+    });
 
-        setMode(btn.dataset.mode);
-
-        if (!currentEvent){
-          addBettyBubble("Seleziona un match 😊");
-          return;
-        }
-
-        if (btn.dataset.mode === "COMBOS"){
-          await handleComboRequest(`Fammi una multipla da 3 partite usando il tabellone attuale.`, "Combo/Multiple");
-          return;
-        }
-
-        const strong = buildStrongMarketRequest(btn.dataset.mode, currentEvent);
-
-        addUserBubble(btn.textContent);
-        chatHistory.push({ role:"user", content: strong });
-
-        const th = addThinking();
-        const ans = await askBetty(strong);
-        removeThinking(th);
-
-        addBettyBubble(ans);
-        chatHistory.push({ role:"assistant", content: ans });
-      });
+    $.marketSelect.addEventListener("change", async ()=>{
+      const mode = $.marketSelect.value || "OPEN";
+      await triggerMarketAnalysis(mode, marketLabelFromMode(mode));
     });
 
     $.sendBtn.addEventListener("click", async ()=>{
@@ -1623,7 +1766,7 @@
       chatHistory.push({ role:"user", content: t });
 
       const th = addThinking();
-      const ans = await askBetty(t);
+      const ans = await askBetty(t, { mode: currentMode });
       removeThinking(th);
 
       addBettyBubble(ans);
