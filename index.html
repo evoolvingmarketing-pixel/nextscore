@@ -332,16 +332,15 @@
               <option value="soccer_germany_bundesliga">Calcio — Bundesliga</option>
               <option value="soccer_france_ligue_one">Calcio — Ligue 1</option>
               <option value="soccer_uefa_champs_league">UEFA — Champions League</option>
+              <option value="soccer_fifa_world_cup">FIFA — Mondiali</option>
+              <option value="soccer_fifa_club_world_cup">FIFA — Mondiale per Club</option>
+              <option value="soccer_fifa_world_cup_qualifiers_europe">FIFA — Qualificazioni Mondiali Europa</option>
+              <option value="soccer_fifa_world_cup_qualifiers_south_america">FIFA — Qualificazioni Mondiali Sud America</option>
               <option value="soccer_uefa_europa_league">UEFA — Europa League</option>
               <option value="soccer_uefa_europa_conference_league">UEFA — Conference League</option>
               <option value="basketball_nba">Basket — NBA</option>
               <option value="tennis_atp">Tennis — ATP</option>
-              <option value="custom">— Altro (custom) —</option>
             </select>
-            <input id="sportCustom" type="text" class="input mt-2 hidden" placeholder="es. soccer_uefa_champs_league" />
-            <div class="text-[12px] text-slate-500 mt-1">
-              Se non trovi una competizione: usa “custom” e incolla la <strong>sport_key</strong>.
-            </div>
           </div>
 
           <div>
@@ -496,7 +495,6 @@
       chipContext: el("chipContext"),
 
       sport: el("sport"),
-      sportCustom: el("sportCustom"),
       regions: el("regions"),
       range: el("range"),
       refresh: el("refreshBtn"),
@@ -548,9 +546,7 @@
     }
 
     function chosenSport(){
-      return ($.sport.value === "custom" && $.sportCustom.value.trim())
-        ? $.sportCustom.value.trim()
-        : $.sport.value;
+      return $.sport.value;
     }
 
     function chosenRange(){
@@ -1716,16 +1712,7 @@
     $.range.addEventListener("change", load);
     $.regions.addEventListener("change", load);
 
-    $.sport.addEventListener("change", () => {
-      const custom = $.sport.value === "custom";
-      $.sportCustom.classList.toggle("hidden", !custom);
-      if (custom) $.sportCustom.focus();
-      if (!custom) load();
-    });
-
-    $.sportCustom.addEventListener("keydown", (e)=>{
-      if (e.key === "Enter") load();
-    });
+    $.sport.addEventListener("change", load);
 
     $.marketSelect.addEventListener("change", async ()=>{
       const mode = $.marketSelect.value || "OPEN";
