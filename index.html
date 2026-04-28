@@ -81,6 +81,26 @@
       box-shadow:0 0 0 4px rgba(245,158,11,.14);
     }
 
+    .sportSelect{
+      font-weight:800;
+      background:
+        linear-gradient(135deg, rgba(255,247,237,.95) 0%, rgba(255,255,255,1) 58%),
+        #fff;
+    }
+
+    .sportSelect optgroup{
+      font-weight:900;
+      color:#92400e;
+      background:#fff7ed;
+    }
+
+    .sportSelect option{
+      font-weight:700;
+      color:#0f172a;
+      background:#ffffff;
+      padding:10px;
+    }
+
     .tlogo{
       width:34px;
       height:34px;
@@ -310,7 +330,7 @@
         </h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
           Seleziona un match e leggi l’analisi di <strong>Betty</strong>
-          <span class="text-slate-500">(quote, finestra temporale e contesto quando disponibile)</span>.
+          <span class="text-slate-500">(quote, mercato selezionato e contesto quando disponibile)</span>.
         </p>
       </div>
 
@@ -325,21 +345,29 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div class="md:col-span-2">
             <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
-            <select id="sport" class="input">
-              <option value="soccer_italy_serie_a">Calcio — Serie A</option>
-              <option value="soccer_epl">Calcio — Premier League</option>
-              <option value="soccer_spain_la_liga">Calcio — La Liga</option>
-              <option value="soccer_germany_bundesliga">Calcio — Bundesliga</option>
-              <option value="soccer_france_ligue_one">Calcio — Ligue 1</option>
-              <option value="soccer_uefa_champs_league">UEFA — Champions League</option>
-              <option value="soccer_fifa_world_cup">FIFA — Mondiali</option>
-              <option value="soccer_fifa_club_world_cup">FIFA — Mondiale per Club</option>
-              <option value="soccer_fifa_world_cup_qualifiers_europe">FIFA — Qualificazioni Mondiali Europa</option>
-              <option value="soccer_fifa_world_cup_qualifiers_south_america">FIFA — Qualificazioni Mondiali Sud America</option>
-              <option value="soccer_uefa_europa_league">UEFA — Europa League</option>
-              <option value="soccer_uefa_europa_conference_league">UEFA — Conference League</option>
-              <option value="basketball_nba">Basket — NBA</option>
-              <option value="tennis_atp">Tennis — ATP</option>
+            <select id="sport" class="input sportSelect">
+              <optgroup label="🇮🇹 Campionati nazionali">
+                <option value="soccer_italy_serie_a">🇮🇹 Calcio — Serie A</option>
+                <option value="soccer_epl">🏴 Calcio — Premier League</option>
+                <option value="soccer_spain_la_liga">🇪🇸 Calcio — La Liga</option>
+                <option value="soccer_germany_bundesliga">🇩🇪 Calcio — Bundesliga</option>
+                <option value="soccer_france_ligue_one">🇫🇷 Calcio — Ligue 1</option>
+              </optgroup>
+              <optgroup label="🇪🇺 Coppe europee">
+                <option value="soccer_uefa_champs_league">⭐ UEFA — Champions League</option>
+                <option value="soccer_uefa_europa_league">🟠 UEFA — Europa League</option>
+                <option value="soccer_uefa_europa_conference_league">🟢 UEFA — Conference League</option>
+              </optgroup>
+              <optgroup label="🌍 Competizioni internazionali">
+                <option value="soccer_fifa_world_cup">🌍 FIFA — Mondiali</option>
+                <option value="soccer_fifa_club_world_cup">🏆 FIFA — Mondiale per Club</option>
+                <option value="soccer_fifa_world_cup_qualifiers_europe">🇪🇺 FIFA — Qualificazioni Mondiali Europa</option>
+                <option value="soccer_fifa_world_cup_qualifiers_south_america">🌎 FIFA — Qualificazioni Mondiali Sud America</option>
+              </optgroup>
+              <optgroup label="🏀 Altri sport">
+                <option value="basketball_nba">🏀 Basket — NBA</option>
+                <option value="tennis_atp">🎾 Tennis — ATP</option>
+              </optgroup>
             </select>
           </div>
 
@@ -372,7 +400,7 @@
           <span class="chip" id="chipCount">match: —</span>
           <span class="chip" id="chipMode">modalità: live</span>
           <span class="chip" id="chipRange">range: prossima giornata</span>
-          <span class="chip">mercati API: 1X2 / O-U</span>
+          <span class="chip">⚽ mercati: 1X2 / O-U + predittivi</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
         </div>
