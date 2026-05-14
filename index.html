@@ -367,8 +367,11 @@
           <div class="md:col-span-2">
             <label class="block text-sm font-bold text-slate-800 mb-1">Sport / Campionato</label>
             <select id="sport" class="input sportSelect">
+              <optgroup label="⭐ Vista rapida">
+                <option value="all_soccer">🌍 Tutti i match</option>
+              </optgroup>
               <optgroup label="🇮🇹 Campionati nazionali">
-                <option value="soccer_italy_serie_a">🇮🇹 Calcio — Serie A</option>
+                <option value="soccer_italy_serie_a" selected>🇮🇹 Calcio — Serie A</option>
                 <option value="soccer_epl">🏴 Calcio — Premier League</option>
                 <option value="soccer_spain_la_liga">🇪🇸 Calcio — La Liga</option>
                 <option value="soccer_germany_bundesliga">🇩🇪 Calcio — Bundesliga</option>
@@ -421,6 +424,7 @@
           <span class="chip" id="chipCount">match: —</span>
           <span class="chip" id="chipMode">modalità: live</span>
           <span class="chip" id="chipRange">range: prossima giornata</span>
+          <span class="chip">🌍 tutti i match + campionati</span>
           <span class="chip">⚽ mercati: 1X2 / O-U + predittivi</span>
           <span class="chip">AI: Betty 🧙‍♀️</span>
           <span class="chip" id="chipContext">context: —</span>
@@ -632,7 +636,7 @@
     }
 
     function isSoccerSportKey(sk){
-      return /^soccer_/i.test(String(sk||""));
+      return String(sk||"") === "all_soccer" || /^soccer_/i.test(String(sk||""));
     }
 
     function showNotice(txt){
